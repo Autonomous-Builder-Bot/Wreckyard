@@ -12,7 +12,7 @@ const COLORS = {
 const POSITIONS = {
   assembly: { position: [0, 2.9, 2], view: [9, 9, 16], target: [0, 1, 1] },
   workshop: { position: [8, 2.6, 6], view: [15, 9, 16], target: [8, 1, 5] },
-  factory: { position: [-9, 3.3, -4], view: [-1, 12, 8], target: [-9, 1, -4] },
+  factory: { position: [-9, 3.3, -4], view: [-7.5, 6.25, 4.2], target: [-9, 0.95, -4] },
   research: { position: [8, 2.5, -6], view: [17, 9, 4], target: [8, 1, -5] },
   missions: { position: [0, 2.8, -8], view: [9, 9, 2], target: [0, 1, -7] },
   warehouse: { position: [-10, 3.5, 5], view: [-3, 9, 15], target: [-9, 1, 5] },
@@ -123,13 +123,21 @@ export function createHangar(viewport, hotspotLayer, onSelect, onSocketSelect) {
   grid.position.y = -0.062;
   scene.add(grid);
 
+  // Beams provide scale in overview but can block the factory camera entirely.
+  // Treat them as removable visual roofing for the close-up industrial stations.
+  const roofBeams = [];
+  function roofBox(...args) {
+    const beam=box(scene,...args);
+    roofBeams.push(beam);
+    return beam;
+  }
   for (let x = -14; x <= 14; x += 7) {
     box(scene, 0.75, 8, 0.75, x, 3.8, -11.45, metal);
-    box(scene, 0.45, 0.25, 21.5, x, 7.4, -0.6, dark);
-    box(scene, 0.5, 0.17, 4, x, 7.26, 1.1, lampMat, false);
+    roofBox(0.45, 0.25, 21.5, x, 7.4, -0.6, dark);
+    roofBox(0.5, 0.17, 4, x, 7.26, 1.1, lampMat, false);
   }
   for (let z of [-10, -3, 4, 11]) {
-    box(scene, 31, 0.35, 0.36, 0, 7.7, z, dark);
+    roofBox(31, 0.35, 0.36, 0, 7.7, z, dark);
   }
   for (let x of [-14.7, 14.7]) {
     for (let z of [-10, -3, 4, 11]) box(scene, 0.4, 7.7, 0.4, x, 3.75, z, metal);
@@ -307,6 +315,9 @@ export function createHangar(viewport, hotspotLayer, onSelect, onSocketSelect) {
   let targetDestination = overviewTarget.clone();
   function focus(id) {
     activeStation = POSITIONS[id] ? id : "overview";
+    // Keep factory equipment readable from a low-angle view.
+    const showRoof=activeStation!=="factory";
+    for(const beam of roofBeams)beam.visible=showRoof;
     if (POSITIONS[activeStation]) {
       cameraDestination = new THREE.Vector3(...POSITIONS[activeStation].view);
       targetDestination = new THREE.Vector3(...POSITIONS[activeStation].target);
