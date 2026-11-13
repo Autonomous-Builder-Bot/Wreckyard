@@ -1,4 +1,6 @@
 import { loadGame, saveGame, defaultGame, GRID_W, GRID_H, MACHINE_TYPES, canPlace, machineAt, machineFootprint } from "./state.js";
+import { createRobotBuilder } from "./builder-ui.js";
+import { PARTS } from "./robot-data.js";
 
 const STATIONS = [
   { id: "overview", label: "Hangar", icon: "⌂", title: "THE HANGAR", subtitle: "Build machines. Recover the wasteland." },
@@ -22,6 +24,12 @@ let nextMachineId = Date.now();
 const el = id => document.getElementById(id);
 
 function station(id) { return STATIONS.find(item => item.id === id) || STATIONS[0]; }
+const builderUI = createRobotBuilder(() => game, refresh => {
+  persist();
+  updateHUD();
+  sceneApi?.setRobotState(game.builder.draft, game.fleet);
+  if (refresh !== false && currentStation === "assembly") renderPanel();
+}, toast);
 
 function updateHUD() {
   el("hud-scrap").textContent = game.resources.scrap.toLocaleString();
@@ -100,7 +108,7 @@ function infoMarkup(id) {
     case "warehouse":
       return '<p class="panel-lead">Inventory connects the factory, assembly bay and salvage missions. Your opening stock is reserved for the future production economy.</p>' +
         '<div class="stat-grid">' + stat(game.resources.scrap, 'SCRAP METAL') + stat(game.resources.alloy, 'REFINED ALLOY') + stat(game.resources.credits, 'CREDITS') + stat(game.fleet.length, 'ROBOTS') + '</div>' +
-        stationCard("▣", "Component storage", "Recovered and crafted parts will be stored here.") +
+        stationCard("▣", "Component storage", Object.entries(game.inventory.parts).filter(([id,n]) => PARTS[id] && n > 0).map(([id,n]) => PARTS[id].name + " ×" + n).join(" • ") || "No spare components in stock.") +
         starterNotice("Resource amounts persist locally. Transactions will be added with the factory simulation.");
     case "fleet":
       return '<p class="panel-lead">Your machines will live here between jobs. Assign scavenging tasks, form fighting squads, and maintain a production fleet.</p>' +
@@ -161,12 +169,13 @@ function renderPanel() {
   el("panel-kicker").textContent = "FACILITY / STATION " + String(STATIONS.indexOf(s)).padStart(2, "0");
   el("panel-title").textContent = s.title;
   const scroll = el("panel-body").scrollTop;
-  el("panel-body").innerHTML = currentStation === "factory" ? factoryMarkup() : infoMarkup(currentStation);
+  el("panel-body").innerHTML = currentStation === "factory" ? factoryMarkup() : currentStation === "assembly" ? builderUI.markup() : infoMarkup(currentStation);
   el("panel-body").scrollTop = scroll;
 }
 
 function selectStation(id) {
   const s = station(id);
+  document.querySelector(".main-stage")?.classList.remove("builder-preview-mode");
   currentStation = s.id;
   el("stage-title").textContent = s.title;
   el("stage-subtitle").textContent = s.subtitle;
@@ -203,6 +212,7 @@ function placeAt(x, y) {
 }
 
 function onPanelClick(event) {
+  if (currentStation === "assembly") { builderUI.click(event); return; }
   const open = event.target.closest("[data-open]");
   if (open) { selectStation(open.dataset.open); return; }
   if (currentStation !== "factory") return;
@@ -234,6 +244,8 @@ function initUI() {
     if (button) selectStation(button.dataset.nav);
   });
   el("panel-body").addEventListener("click", onPanelClick);
+  el("panel-body").addEventListener("change", event => { if (currentStation === "assembly") builderUI.nameChanged(event); });
+  el("builder-return").addEventListener("click", () => document.querySelector(".main-stage")?.classList.remove("builder-preview-mode"));
   el("close-panel").addEventListener("click", () => selectStation("overview"));
   el("home-button").addEventListener("click", () => selectStation("overview"));
   el("camera-reset").addEventListener("click", () => {
@@ -255,6 +267,7 @@ initUI();
 import("./scene.js").then(module => {
   sceneApi = module.createHangar(el("viewport"), el("hotspots"), selectStation);
   sceneApi.setFactoryMachines(game.factory.machines);
+  sceneApi.setRobotState(game.builder.draft, game.fleet);
   const loading = el("loading-message");
   if (loading) loading.remove();
   sceneApi.focus(currentStation);
