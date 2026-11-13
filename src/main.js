@@ -213,8 +213,9 @@ function refreshFactoryGhost(){
   if(!spec){ghost.style.display="none";sceneApi?.setFactoryGhost(null);return;}
   const {w,h}=machineFootprint(spec);
   ghost.style.display="flex";
-  ghost.style.gridColumn=(spec.x+1)+" / span "+w;
-  ghost.style.gridRow=(spec.y+1)+" / span "+h;
+  // Clip invalid previews to the visible grid; never create implicit CSS rows/columns.
+  ghost.style.gridColumn=(spec.x+1)+" / span "+Math.max(1,Math.min(w,GRID_W-spec.x));
+  ghost.style.gridRow=(spec.y+1)+" / span "+Math.max(1,Math.min(h,GRID_H-spec.y));
   ghost.className="factory-ghost "+(valid?"ghost-valid":"ghost-invalid")+(remove?" ghost-remove":"");
   const symbol=spec.type==="conveyor"?["→","↓","←","↑"][spec.rotation/90]:MACHINE_TYPES[spec.type].short;
   ghost.innerHTML='<span>'+symbol+'</span><small>'+(remove?"RETURN":valid?"PLACE":stockCount(game,currentTool)?"BLOCKED":"OUT OF STOCK")+'</small>';
@@ -350,6 +351,12 @@ function initUI() {
   el("panel-body").addEventListener("pointerleave",()=>{
     if(currentStation==="factory"&&!touchPlacement){
       hoverCell=null;refreshFactoryGhost();
+    }
+  });
+  el("panel-body").addEventListener("focusin",event=>{
+    if(currentStation==="factory"){
+      const cell=event.target.closest("[data-cell]");
+      if(cell)previewCell(Number(cell.dataset.x),Number(cell.dataset.y));
     }
   });
   el("panel-body").addEventListener("change", event => {
