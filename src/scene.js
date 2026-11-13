@@ -358,6 +358,7 @@ export function createHangar(viewport, hotspotLayer, onSelect, onSocketSelect) {
     if (!running) return;
     frame = requestAnimationFrame(tick);
     const t = clock.getElapsedTime();
+    factoryView.animateDeliveries();
     globe.rotation.y = t * 0.29;
     globe.position.y = 2 + Math.sin(t * 1.4) * 0.1;
     missionHolo.rotation.z = t * 0.34;
@@ -386,6 +387,7 @@ export function createHangar(viewport, hotspotLayer, onSelect, onSocketSelect) {
   return {
     focus, resetCamera, resize,
     setFactoryMachines: factoryView.setMachines,
+    setFactoryActivity: factoryView.setActivity,
     setRobotState(draft,fleet){robotDisplays.updateDraft(draft);robotDisplays.updateFleet(fleet);},
     dispose() {
       running = false;
