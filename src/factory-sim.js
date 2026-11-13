@@ -138,8 +138,13 @@ export function refundJobs(game){
     for(const [id,qty]of Object.entries(job.cost||{}))if(id in game.resources)game.resources[id]+=qty;
   }
   p.jobs={};
-  // Completed items have already spent their inputs; cash them in before layout changes.
-  for(const packet of p.deliveries)credit(game,packet.kind,packet.part,packet.quantity);
+  // Completed items already spent their inputs. Bank them before layout changes
+  // and count those finished batches in lifetime production statistics.
+  for(const packet of p.deliveries) {
+    credit(game,packet.kind,packet.part,packet.quantity);
+    if(packet.kind==="alloy")p.totals.alloy+=packet.quantity;
+    else p.totals.parts+=packet.quantity;
+  }
   p.deliveries=[];
 }
 export function removeMachineProduction(game,id){
