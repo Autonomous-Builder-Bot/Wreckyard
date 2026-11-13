@@ -162,7 +162,7 @@ function factoryMarkup() {
     '<div class="factory-grid-wrap"><div id="factory-grid" class="factory-grid" role="grid" aria-label="Factory floor layout">' + cells + placed +
     '<div id="factory-ghost" class="factory-ghost" aria-hidden="true"></div></div></div>' +
     '<p class="factory-legend">' + machines.length + ' placed machines • ' + area + '/' + (GRID_W * GRID_H) +
-    ' occupied cells. Hover for a ghost preview. On touch: tap a tile to preview, then tap again to confirm. Red means blocked; purchase extra machines with BUY +1.</p>' +
+    ' occupied cells. <strong id="factory-3d-status" class="factory-3d-status">3D: loading</strong>. Hover for a ghost preview. On touch: tap a tile to preview, then tap again to confirm. Red means blocked; purchase extra machines with BUY +1.</p>' +
     '<div class="action-row"><button type="button" class="small-button" data-factory-confirm="1">PLACE AT PREVIEW</button>'+
     '<button type="button" class="small-button" data-factory-clear-preview="1">CLEAR PREVIEW</button></div>' +
     '<div class="action-row"><button type="button" class="action-button secondary" data-factory-action="save">SAVE LAYOUT</button>' +
@@ -178,7 +178,7 @@ function renderPanel() {
   const scroll = el("panel-body").scrollTop;
   el("panel-body").innerHTML = currentStation === "factory" ? factoryMarkup() : currentStation === "assembly" ? builderUI.markup() : infoMarkup(currentStation);
   el("panel-body").scrollTop = scroll;
-  if(currentStation==="factory")refreshFactoryGhost();
+  if(currentStation==="factory"){refreshFactoryGhost();updateFactoryModelBadge();}
 }
 
 function selectStation(id) {
@@ -196,6 +196,28 @@ function selectStation(id) {
   renderNav();
   sceneApi?.focus(currentStation);
   document.querySelectorAll(".hotspot").forEach(node => node.classList.toggle("active", node.dataset.station === currentStation));
+}
+
+function updateFactoryModelBadge(){
+  const badge=el("factory-3d-status");
+  if(!badge)return;
+  if(!sceneApi){badge.textContent="3D: loading";return;}
+  const count=sceneApi.factoryModelCount?.();
+  if(!Number.isInteger(count)){badge.textContent="3D: unavailable";return;}
+  badge.textContent="3D: "+count+" / "+game.factory.machines.length;
+  badge.classList.toggle("factory-model-mismatch",count!==game.factory.machines.length);
+}
+function syncFactoryScene(){
+  if(!sceneApi)return;
+  sceneApi.setFactoryMachines(game.factory.machines);
+  const count=sceneApi.factoryModelCount?.();
+  if(Number.isInteger(count)){
+    const badge=el("factory-3d-status");
+    if(badge){
+      badge.textContent="3D: "+count+" / "+game.factory.machines.length;
+      badge.classList.toggle("factory-model-mismatch",count!==game.factory.machines.length);
+    }
+  }
 }
 
 function refreshFactoryGhost(){
@@ -272,12 +294,12 @@ function placeAt(x,y){
   if(currentTool==="erase"){
     const target=machineAt(game.factory.machines,x,y);
     const result=target?removeOwnedMachine(game,target.id):{ok:false,message:"No machine in this tile."};
-    if(result.ok){sceneApi?.setFactoryMachines(game.factory.machines);persist();updateHUD();renderPanel();}
+    if(result.ok){syncFactoryScene();persist();updateHUD();renderPanel();}
     toast(result.message);return;
   }
   const result=placeOwnedMachine(game,currentTool,x,y,toolRotation,"m-"+(++nextMachineId));
   if(result.ok){
-    sceneApi?.setFactoryMachines(game.factory.machines);
+    syncFactoryScene();
     persist();updateHUD();renderPanel();
   }
   toast(result.message);
@@ -348,7 +370,7 @@ function onPanelClick(event) {
     "Clear the factory floor? Every placed machine will return to storage. Unfinished production inputs will be refunded."
   )){
     const result=clearFactoryLayout(game);
-    sceneApi?.setFactoryMachines(game.factory.machines);
+    syncFactoryScene();
     sceneApi?.setFactoryActivity([]);
     hoverCell=null;touchArmedCell=null;
     persist();updateHUD();renderPanel();toast(result.message);
@@ -361,7 +383,7 @@ function onPanelClick(event) {
     )){
       const result=installStarterLine(game);
       if(result.ok){
-        sceneApi?.setFactoryMachines(game.factory.machines);
+        syncFactoryScene();
         sceneApi?.setFactoryActivity([]);
         hoverCell=null;touchArmedCell=null;
         persist();updateHUD();renderPanel();
@@ -384,7 +406,7 @@ function initUI() {
       touchPlacement=event.pointerType==="touch"||event.pointerType==="pen";
   });
   el("panel-body").addEventListener("pointermove",event=>{
-    if(currentStation!=="factory")return;
+    if(currentStation!=="factory"||event.pointerType==="touch")return;
     const cell=event.target.closest("[data-cell]");
     if(cell)previewCell(Number(cell.dataset.x),Number(cell.dataset.y));
   });
@@ -436,7 +458,7 @@ import("./scene.js").then(module => {
     document.querySelector(".main-stage")?.classList.remove("builder-preview-mode");
     builderUI.selectSocket(socketId);
   });
-  sceneApi.setFactoryMachines(game.factory.machines);
+  syncFactoryScene();
   if(currentStation==="factory")refreshFactoryGhost();
   sceneApi.setFactoryActivity(game.factory.production.deliveries);
   sceneApi.setRobotState(game.builder.draft, game.fleet);
@@ -465,6 +487,7 @@ window.setInterval(()=>{
   if(changed){
     if(currentStation==="warehouse"||currentStation==="fleet"||currentStation==="research"||currentStation==="workshop")
       renderPanel();
+    if(currentStation==="missions"&&missionEvents.length)renderPanel();
     if(missionEvents.length){
       const last=missionEvents[0];
       toast(last.robotName+" returned: +"+last.reward.scrap+" scrap, +"+last.reward.alloy+" alloy.");
