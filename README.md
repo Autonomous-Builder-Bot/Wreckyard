@@ -44,6 +44,16 @@ Scavenging requires a valid powered robot design with two drives, a battery, at 
 
 Industrial research can increase forging output, speed up conveyor deliveries or machine cycles, and lower component production costs. Exploration research unlocks progressively more valuable and risky locations. Combat and interactive combat animation remain planned future milestones.
 
+## Factory reliability and preview
+
+The factory editor shows the selected machine's placement footprint before committing it. Placed equipment is rendered in both the 2D planner and the Three.js factory floor. The status line reports **3D: loaded / placed**, which should match when the 3D scene is ready.
+
+Use **View Factory in 3D** to hide the editor and inspect equipment directly; **Back to Factory** restores the controls. The close-up view hides overhead beams and the assembly crane that would otherwise obstruct the machines. On touch devices, the factory panel is kept stable while simulations run, so buttons remain tappable.
+
+**Clear Layout · Return Machines** removes placed equipment from the floor and returns it to machine stock. In-progress fabrication inputs are refunded, and completed goods are deposited into inventory. **Install Starter Line** reuses your inventory and purchases missing equipment only with your approval.
+
+Browser regressions run in headless Chromium on desktop and mobile. They verify real Three.js loading, actual machine counts, placement previews, clearing the floor, inventory returns, starter-line restoration and the full-screen 3D view, supplementing Node gameplay tests.
+
 ## Development and tests
 
 Run locally with a static server:
