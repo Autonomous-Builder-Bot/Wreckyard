@@ -1,6 +1,9 @@
 import { loadGame, saveGame, defaultGame, GRID_W, GRID_H, MACHINE_TYPES, canPlace, machineAt, machineFootprint } from "./state.js";
 import { createRobotBuilder } from "./builder-ui.js";
 import { PARTS } from "./robot-data.js";
+import { ensureProduction, advanceFactory, refundJobs, removeMachineProduction, toggleProduction, setMachineRecipe, setMachineEnabled } from "./factory-sim.js";
+import { ensureProgress, advanceMissions, startMission, purchaseResearch, repairRobot } from "./progression.js";
+import { factoryControls, missionsMarkup, groupedResearchMarkup, workshopMarkup } from "./step3-ui.js";
 
 const STATIONS = [
   { id: "overview", label: "Hangar", icon: "⌂", title: "THE HANGAR", subtitle: "Build machines. Recover the wasteland." },
@@ -14,6 +17,9 @@ const STATIONS = [
 ];
 
 let game = loadGame();
+ensureProduction(game);
+ensureProgress(game);
+advanceMissions(game);
 let currentStation = "overview";
 let currentTool = "conveyor";
 let toolRotation = 0;
@@ -87,35 +93,23 @@ function infoMarkup(id) {
         stationCard("⚡", "Mechanical constraints", "Weight, power draw, tools and mobility affect performance.") +
         starterNotice("Robot construction will be implemented in Step 2. The station and navigation are ready.");
     case "workshop":
-      return '<p class="panel-lead">Repair damage and tune components on every robot you own. Individual parts will have upgrade levels and material costs.</p>' +
-        stationCard("⚒", "Repair benches", "Restore damaged robot components to working condition.") +
-        stationCard("↟", "Component upgrades", "Improve durability, efficiency, power and carrying capacity.") +
-        stationCard("□", "Parts inspection", "Review part stats and durability in detail.") +
-        starterNotice("Upgrades and repairs connect to actual robot parts in the next milestones.");
+      return workshopMarkup(game);
     case "research":
-      return '<p class="panel-lead">Unlock new manufacturing methods, chassis designs, automation tools and stronger robot equipment. Progress through branching technologies.</p>' +
-        '<div class="section-label">Planned technology branches</div>' +
-        stationCard("⚙", "Mechanical engineering", "Better locomotion, hydraulics and chassis.") +
-        stationCard("◈", "Material science", "Higher-strength alloys and advanced forging.") +
-        stationCard("⌘", "Automation", "Smarter factories, machine controllers and AI targeting.") +
-        starterNotice("Research branches will consume materials once production is simulated.");
+      return groupedResearchMarkup(game);
     case "missions":
-      return '<p class="panel-lead">Send specialized machines to recover parts, map abandoned facilities and eventually challenge hostile robots in arena battles.</p>' +
-        stationCard("01", "The Rust Flats", "Small deposits of common scrap. Recommended for early scavengers.") +
-        stationCard("02", "Broken Relay Station", "Damaged infrastructure with valuable electronic components.") +
-        stationCard("03", "The Iron Pit", "Dangerous machines guard heavier salvage and rare blueprints.") +
-        starterNotice("Mission selection is a preview. Deployments and combat are not active yet.");
+      return missionsMarkup(game);
     case "warehouse":
       return '<p class="panel-lead">Inventory connects the factory, assembly bay and salvage missions. Your opening stock is reserved for the future production economy.</p>' +
         '<div class="stat-grid">' + stat(game.resources.scrap, 'SCRAP METAL') + stat(game.resources.alloy, 'REFINED ALLOY') + stat(game.resources.credits, 'CREDITS') + stat(game.fleet.length, 'ROBOTS') + '</div>' +
         stationCard("▣", "Component storage", Object.entries(game.inventory.parts).filter(([id,n]) => PARTS[id] && n > 0).map(([id,n]) => PARTS[id].name + " ×" + n).join(" • ") || "No spare components in stock.") +
-        starterNotice("Resource amounts persist locally. Transactions will be added with the factory simulation.");
+        stationCard("▣", "Production totals", game.factory.production.totals.alloy + " alloy refined • " + game.factory.production.totals.parts + " parts manufactured") +
+        '<div class="notice cool">Your warehouse contains resources earned by expeditions and produced by the factory. Manual assembly and automation both draw from this inventory.</div>';
     case "fleet":
       return '<p class="panel-lead">Your machines will live here between jobs. Assign scavenging tasks, form fighting squads, and maintain a production fleet.</p>' +
         '<div class="section-label">Registered units</div>' +
         game.fleet.map(robot => stationCard("▧", robot.name, robot.type + " • " + robot.condition + "% condition • " + robot.status)).join("") +
         '<div class="stat-grid">' + stat(game.fleet.length, 'ROBOTS OWNED') + stat('01', 'ACTIVE HANGAR') + '</div>' +
-        starterNotice("Robot deployment and blueprint production arrive after the builder is implemented.");
+        '<div class="notice cool">Use Assembly to customize robots, Missions to deploy scavengers, and Workshop to repair damage.</div>';
     default:
       return '';
   }
@@ -144,10 +138,11 @@ function factoryMarkup() {
     const m = MACHINE_TYPES[type];
     return '<button type="button" class="machine-tool' + (currentTool === type ? ' selected' : '') +
       '" data-tool="' + type + '" aria-pressed="' + (currentTool === type) + '"><strong>' + m.short +
-      ' ' + m.name + '</strong><small>' + m.width + ' × ' + m.height + ' tiles</small></button>';
+      ' ' + m.name + '</strong><small>' + m.width + ' × ' + m.height + ' tiles • ' +
+      m.cost.scrap + ' scrap / ' + m.cost.alloy + ' alloy</small></button>';
   }).join("");
   return '<p class="panel-lead">Design your future production floor. Place forges, conveyors, builders, storage and power generators on the grid. Your layout is automatically saved.</p>' +
-    '<div class="notice">BLUEPRINT MODE — This is a placement prototype. Machines do not consume resources or manufacture parts yet.</div>' +
+    '<div class="notice cool">LIVE FACTORY — Machines now consume resources, require power, and follow directional conveyor connections. The production switch is below the grid.</div>' +
     '<div class="section-label">Machine palette</div><div class="machine-list">' + tools +
     '<button type="button" class="machine-tool' + (currentTool === "erase" ? ' selected' : '') +
     '" data-tool="erase"><strong>× Remove</strong><small>Delete placed machine</small></button></div>' +
@@ -157,10 +152,7 @@ function factoryMarkup() {
     ' occupied cells. Tap an empty tile to place; choose Remove and tap a machine to erase it.</p>' +
     '<div class="action-row"><button type="button" class="action-button secondary" data-factory-action="save">SAVE LAYOUT</button>' +
     '<button type="button" class="action-button danger" data-factory-action="reset">RESET LAYOUT</button></div>' +
-    '<div class="divider"></div><div class="section-label">Future processing chain</div>' +
-    stationCard("▤", "Storage → Forge", "Conveyors will route salvage into a smelting station.") +
-    stationCard("⚙", "Forge → Builder", "Smelted metal and other ingredients will feed part assemblers.") +
-    stationCard("◇", "Builder → Warehouse", "Completed components will become usable robot inventory.");
+    '<div class="divider"></div>' + factoryControls(game);
 }
 
 function renderPanel() {
@@ -194,6 +186,7 @@ function placeAt(x, y) {
   if (currentTool === "erase") {
     const target = machineAt(machines, x, y);
     if (!target) return toast("No machine in this tile.");
+    removeMachineProduction(game,target.id);
     game.factory.machines = machines.filter(m => m.id !== target.id);
     sceneApi?.setFactoryMachines(game.factory.machines);
     persist();
@@ -204,7 +197,13 @@ function placeAt(x, y) {
   if (!canPlace(machines, currentTool, x, y, toolRotation)) {
     return toast("Not enough clear floor space for that machine.");
   }
+  const machine=MACHINE_TYPES[currentTool];
+  if(game.resources.scrap<machine.cost.scrap||game.resources.alloy<machine.cost.alloy)
+    return toast("Not enough scrap or alloy to place "+machine.name+".");
+  game.resources.scrap-=machine.cost.scrap;
+  game.resources.alloy-=machine.cost.alloy;
   game.factory.machines.push({ id: "m-" + (++nextMachineId), type: currentTool, x, y, rotation: toolRotation });
+  updateHUD();
   sceneApi?.setFactoryMachines(game.factory.machines);
   persist();
   renderPanel();
@@ -213,9 +212,33 @@ function placeAt(x, y) {
 
 function onPanelClick(event) {
   if (currentStation === "assembly") { builderUI.click(event); return; }
+  const repair=event.target.closest("[data-repair-robot]");
+  if(repair){
+    const result=repairRobot(game,repair.dataset.repairRobot);
+    if(result.ok)persist();updateHUD();renderPanel();toast(result.message);return;
+  }
+  const research=event.target.closest("[data-research-buy]");
+  if(research){
+    const result=purchaseResearch(game,research.dataset.researchBuy);
+    if(result.ok)persist();updateHUD();renderPanel();toast(result.message);return;
+  }
+  const mission=event.target.closest("[data-mission-start]");
+  if(mission){
+    const result=startMission(game,mission.dataset.missionStart,game.missions.selectedRobotId);
+    if(result.ok){persist();renderPanel();updateHUD();}
+    toast(result.message);return;
+  }
   const open = event.target.closest("[data-open]");
   if (open) { selectStation(open.dataset.open); return; }
   if (currentStation !== "factory") return;
+  const prod=event.target.closest("[data-production-toggle]");
+  if(prod){const running=toggleProduction(game);persist();renderPanel();toast(running?"Production started.":"Production paused.");return;}
+  const machineToggle=event.target.closest("[data-machine-toggle]");
+  if(machineToggle){
+    const id=machineToggle.dataset.machineToggle;
+    setMachineEnabled(game,id,game.factory.production.enabled[id]===false);
+    persist();renderPanel();return;
+  }
   const tool = event.target.closest("[data-tool]");
   if (tool) { currentTool = tool.dataset.tool; renderPanel(); return; }
   const rotate = event.target.closest("[data-rotate]");
@@ -228,11 +251,30 @@ function onPanelClick(event) {
     persist();
     toast("Factory layout saved to this browser.");
   }
-  if (action.dataset.factoryAction === "reset" && window.confirm("Reset the factory floor to its starter layout?")) {
-    game.factory = defaultGame().factory;
-    // Do not reset unrelated inventory or fleet when restoring the default layout.
+  if (action.dataset.factoryAction === "reset" && window.confirm("Restore the starter production line? This replaces your current floor layout but preserves your resources, fleet, research and mission progress.")) {
+    refundJobs(game);
+    const defaults=defaultGame().factory;
+    game.factory.machines=defaults.machines;
+    game.factory.production.recipes=defaults.production.recipes;
+    game.factory.production.enabled={};
+    game.factory.production.running=false;
+    // Refund outstanding work and finish any deliveries; don't reset unrelated progress.
     sceneApi?.setFactoryMachines(game.factory.machines);
-    persist(); renderPanel(); toast("Factory floor reset.");
+    sceneApi?.setFactoryActivity([]);
+    persist();updateHUD();renderPanel();toast("Factory starter line restored.");
+  }
+  if(action.dataset.factoryAction==="demo"){
+    if(window.confirm("Install a connected demonstration production line? Your existing floor machines will be replaced; resources and robot designs remain.")){
+      refundJobs(game);
+      const defaults=defaultGame().factory;
+      game.factory.machines=defaults.machines;
+      game.factory.production.recipes=defaults.production.recipes;
+      game.factory.production.enabled={};
+      game.factory.production.running=false;
+      sceneApi?.setFactoryMachines(game.factory.machines);
+      sceneApi?.setFactoryActivity([]);
+      persist();updateHUD();renderPanel();toast("Connected production line installed.");
+    }
   }
 }
 
@@ -244,7 +286,18 @@ function initUI() {
     if (button) selectStation(button.dataset.nav);
   });
   el("panel-body").addEventListener("click", onPanelClick);
-  el("panel-body").addEventListener("change", event => { if (currentStation === "assembly") builderUI.nameChanged(event); });
+  el("panel-body").addEventListener("change", event => {
+    if(currentStation==="assembly")builderUI.nameChanged(event);
+    if(currentStation==="factory"&&event.target.matches("[data-machine-recipe]")){
+      if(setMachineRecipe(game,event.target.dataset.machineRecipe,event.target.value)){
+        persist();renderPanel();toast("Production recipe updated.");
+      }
+    }
+    if(currentStation==="missions"&&event.target.matches("[data-mission-select]")){
+      game.missions.selectedRobotId=event.target.value;
+      persist();renderPanel();
+    }
+  });
   el("builder-return").addEventListener("click", () => document.querySelector(".main-stage")?.classList.remove("builder-preview-mode"));
   el("close-panel").addEventListener("click", () => selectStation("overview"));
   el("home-button").addEventListener("click", () => selectStation("overview"));
@@ -255,6 +308,7 @@ function initUI() {
   el("save-button").addEventListener("click", () => { persist(); toast("Game data saved locally."); });
   window.addEventListener("keydown", event => {
     if (event.key === "Escape") selectStation("overview");
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLTextAreaElement) return;
     if (currentStation === "factory" && (event.key === "r" || event.key === "R")) {
       toolRotation = (toolRotation + 90) % 360; renderPanel();
     }
@@ -270,6 +324,7 @@ import("./scene.js").then(module => {
     builderUI.selectSocket(socketId);
   });
   sceneApi.setFactoryMachines(game.factory.machines);
+  sceneApi.setFactoryActivity(game.factory.production.deliveries);
   sceneApi.setRobotState(game.builder.draft, game.fleet);
   const loading = el("loading-message");
   if (loading) loading.remove();
@@ -278,3 +333,36 @@ import("./scene.js").then(module => {
   console.error("Unable to initialize the Three.js hangar:", error);
   el("loading-message").textContent = "3D HANGAR UNAVAILABLE — CHECK WEBGL / CONNECTION. ALL STATION MENUS REMAIN ACCESSIBLE.";
 });
+
+// Factory ticks in foreground time only (paused when hidden), while expedition
+// completion uses timestamps and is resilient to closing/reopening the browser.
+let lastTick=performance.now();
+let ticks=0;
+window.setInterval(()=>{
+  const now=performance.now(),delta=Math.max(0,Math.min(1.5,(now-lastTick)/1000));
+  lastTick=now;
+  const missionEvents=advanceMissions(game);
+  const factoryEvents=document.hidden?[]:advanceFactory(game,delta);
+  sceneApi?.setFactoryActivity(game.factory.production.deliveries);
+  const changed=missionEvents.length>0||factoryEvents.length>0;
+  ticks++;
+  if(changed||ticks%20===0)persist();
+  updateHUD();
+  if(changed){
+    if(currentStation==="warehouse"||currentStation==="fleet"||currentStation==="research"||currentStation==="workshop")
+      renderPanel();
+    if(missionEvents.length){
+      const last=missionEvents[0];
+      toast(last.robotName+" returned: +"+last.reward.scrap+" scrap, +"+last.reward.alloy+" alloy.");
+      sceneApi?.setRobotState(game.builder.draft,game.fleet);
+    }
+  }
+  // Keep expedition countdowns and machine progress fresh without resetting
+  // an open dropdown or interrupting other editor interactions.
+  if(ticks%4===0 && (currentStation==="factory"||currentStation==="missions")){
+    if(!el("panel-body").contains(document.activeElement)||
+       !["SELECT","INPUT"].includes(document.activeElement.tagName))renderPanel();
+  }
+},250);
+document.addEventListener("visibilitychange",()=>{lastTick=performance.now();if(document.hidden)persist();});
+window.addEventListener("pagehide",()=>persist());
