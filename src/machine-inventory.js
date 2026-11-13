@@ -1,11 +1,8 @@
-import { MACHINE_TYPES, defaultGame, canPlace } from "./state.js";
+import { MACHINE_TYPES, STARTER_MACHINE_STOCK, defaultGame, canPlace } from "./state.js";
 import { refundJobs, removeMachineProduction } from "./factory-sim.js";
 
 // Stock counts represent physical, unplaced machines. Placed machines remain owned
 // and always go back to stock when removed. Only purchases spend raw materials.
-export const STARTER_MACHINE_STOCK = Object.freeze({
-  conveyor: 6, forge: 1, assembler: 1, storage: 1, generator: 1
-});
 const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
 export function machineStock(game) {
   game.inventory ||= {parts:{}};
