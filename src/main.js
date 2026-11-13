@@ -4,6 +4,7 @@ import { PARTS } from "./robot-data.js";
 import { ensureProduction, advanceFactory, refundJobs, removeMachineProduction, toggleProduction, setMachineRecipe, setMachineEnabled, factoryStatus } from "./factory-sim.js";
 import { ensureProgress, advanceMissions, startMission, purchaseResearch, repairRobot } from "./progression.js";
 import { factoryControls, missionsMarkup, groupedResearchMarkup, workshopMarkup } from "./step3-ui.js";
+import { stockCount, buyMachine, placeOwnedMachine, removeOwnedMachine, clearFactoryLayout, installStarterLine, starterLineQuote } from "./machine-inventory.js";
 
 const STATIONS = [
   { id: "overview", label: "Hangar", icon: "⌂", title: "THE HANGAR", subtitle: "Build machines. Recover the wasteland." },
@@ -27,6 +28,9 @@ let sceneApi = null;
 let toastTimer = null;
 let saveLabelTimer = null;
 let nextMachineId = Date.now();
+let hoverCell = null;
+let touchArmedCell = null;
+let touchPlacement = false;
 const el = id => document.getElementById(id);
 
 function station(id) { return STATIONS.find(item => item.id === id) || STATIONS[0]; }
@@ -138,11 +142,15 @@ function factoryMarkup() {
       (m.type === "conveyor" ? '' : '<span>' + MACHINE_TYPES[m.type].name.toUpperCase() + '</span>') + '</div>';
   }).join("");
   const tools = Object.keys(MACHINE_TYPES).map(type => {
-    const m = MACHINE_TYPES[type];
-    return '<button type="button" class="machine-tool' + (currentTool === type ? ' selected' : '') +
+    const m = MACHINE_TYPES[type], stock=stockCount(game,type);
+    return '<div class="machine-palette-entry"><button type="button" class="machine-tool' +
+      (currentTool === type ? ' selected' : '') +
       '" data-tool="' + type + '" aria-pressed="' + (currentTool === type) + '"><strong>' + m.short +
-      ' ' + m.name + '</strong><small>' + m.width + ' × ' + m.height + ' tiles • ' +
-      m.cost.scrap + ' scrap / ' + m.cost.alloy + ' alloy</small></button>';
+      ' ' + m.name + '</strong><span class="machine-stock-badge" aria-label="' + stock +
+      ' available">' + stock + '</span><small>' + m.width + ' × ' + m.height +
+      ' tiles · available to place</small></button><button type="button" class="machine-buy" data-buy-machine="' +
+      type + '" title="Buy ' + m.name + ' for ' + m.cost.scrap + ' scrap and ' + m.cost.alloy +
+      ' alloy">BUY +1 · ' + m.cost.scrap + 'S ' + m.cost.alloy + 'A</button></div>';
   }).join("");
   return '<p class="panel-lead">Design your production floor. Connect storage, forges, builders and generators with directional conveyors.</p>' +
     (needsStarter ? '<div class="notice">This older or incomplete layout does not have a full working production chain. You can rebuild it manually or install a connected starter line without losing your robots, inventory or research.</div><div class="action-row"><button type="button" class="action-button" data-factory-action="demo">INSTALL STARTER LINE</button></div>' : '') +
@@ -151,11 +159,14 @@ function factoryMarkup() {
     '<button type="button" class="machine-tool' + (currentTool === "erase" ? ' selected' : '') +
     '" data-tool="erase"><strong>× Remove</strong><small>Delete placed machine</small></button></div>' +
     '<div class="planner-toolbar"><span class="tag">ROTATION ' + toolRotation + '°</span><button type="button" class="small-button" data-rotate="1">ROTATE ↻ (R)</button></div>' +
-    '<div class="factory-grid-wrap"><div id="factory-grid" class="factory-grid" role="grid" aria-label="Factory floor layout">' + cells + placed + '</div></div>' +
-    '<p class="factory-legend">' + machines.length + ' machine segments • ' + area + '/' + (GRID_W * GRID_H) +
-    ' occupied cells. Tap an empty tile to place; choose Remove and tap a machine to erase it.</p>' +
+    '<div class="factory-grid-wrap"><div id="factory-grid" class="factory-grid" role="grid" aria-label="Factory floor layout">' + cells + placed +
+    '<div id="factory-ghost" class="factory-ghost" aria-hidden="true"></div></div></div>' +
+    '<p class="factory-legend">' + machines.length + ' placed machines • ' + area + '/' + (GRID_W * GRID_H) +
+    ' occupied cells. Hover for a ghost preview. On touch: tap a tile to preview, then tap again to confirm. Red means blocked; purchase extra machines with BUY +1.</p>' +
+    '<div class="action-row"><button type="button" class="small-button" data-factory-confirm="1">PLACE AT PREVIEW</button>'+
+    '<button type="button" class="small-button" data-factory-clear-preview="1">CLEAR PREVIEW</button></div>' +
     '<div class="action-row"><button type="button" class="action-button secondary" data-factory-action="save">SAVE LAYOUT</button>' +
-    '<button type="button" class="action-button danger" data-factory-action="reset">RESET LAYOUT</button></div>' +
+    '<button type="button" class="action-button danger" data-factory-action="reset">CLEAR LAYOUT · RETURN MACHINES</button></div>' +
     '<div class="divider"></div>' + factoryControls(game);
 }
 
@@ -167,12 +178,14 @@ function renderPanel() {
   const scroll = el("panel-body").scrollTop;
   el("panel-body").innerHTML = currentStation === "factory" ? factoryMarkup() : currentStation === "assembly" ? builderUI.markup() : infoMarkup(currentStation);
   el("panel-body").scrollTop = scroll;
+  if(currentStation==="factory")refreshFactoryGhost();
 }
 
 function selectStation(id) {
   const s = station(id);
   document.querySelector(".main-stage")?.classList.remove("builder-preview-mode");
   currentStation = s.id;
+  if(currentStation!=="factory"){hoverCell=null;touchArmedCell=null;sceneApi?.setFactoryGhost(null);}
   el("stage-title").textContent = s.title;
   el("stage-subtitle").textContent = s.subtitle;
   const panel = el("detail-panel");
@@ -185,33 +198,48 @@ function selectStation(id) {
   document.querySelectorAll(".hotspot").forEach(node => node.classList.toggle("active", node.dataset.station === currentStation));
 }
 
-function placeAt(x, y) {
-  const machines = game.factory.machines;
-  if (currentTool === "erase") {
-    const target = machineAt(machines, x, y);
-    if (!target) return toast("No machine in this tile.");
-    removeMachineProduction(game,target.id);
-    game.factory.machines = machines.filter(m => m.id !== target.id);
-    sceneApi?.setFactoryMachines(game.factory.machines);
-    persist();
-    renderPanel();
-    toast(MACHINE_TYPES[target.type].name + " removed.");
+function refreshFactoryGhost(){
+  const ghost=el("factory-ghost");
+  if(!ghost || !hoverCell || currentStation!=="factory"){
+    if(ghost)ghost.style.display="none";
+    sceneApi?.setFactoryGhost(null);
     return;
   }
-  if (!canPlace(machines, currentTool, x, y, toolRotation)) {
-    return toast("Not enough clear floor space for that machine.");
+  const {x,y}=hoverCell;
+  const remove=currentTool==="erase";
+  const target=remove?machineAt(game.factory.machines,x,y):null;
+  const spec=target||(!remove?{type:currentTool,x,y,rotation:toolRotation}:null);
+  const valid=remove?Boolean(target):Boolean(stockCount(game,currentTool)&&canPlace(game.factory.machines,currentTool,x,y,toolRotation));
+  if(!spec){ghost.style.display="none";sceneApi?.setFactoryGhost(null);return;}
+  const {w,h}=machineFootprint(spec);
+  ghost.style.display="flex";
+  ghost.style.gridColumn=(spec.x+1)+" / span "+w;
+  ghost.style.gridRow=(spec.y+1)+" / span "+h;
+  ghost.className="factory-ghost "+(valid?"ghost-valid":"ghost-invalid")+(remove?" ghost-remove":"");
+  const symbol=spec.type==="conveyor"?["→","↓","←","↑"][spec.rotation/90]:MACHINE_TYPES[spec.type].short;
+  ghost.innerHTML='<span>'+symbol+'</span><small>'+(remove?"RETURN":valid?"PLACE":stockCount(game,currentTool)?"BLOCKED":"OUT OF STOCK")+'</small>';
+  sceneApi?.setFactoryGhost({type:spec.type,x:spec.x,y:spec.y,rotation:spec.rotation,valid,remove});
+}
+
+function previewCell(x,y){
+  if(!Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0||x>=GRID_W||y>=GRID_H)return;
+  hoverCell={x,y};
+  refreshFactoryGhost();
+}
+
+function placeAt(x,y){
+  if(currentTool==="erase"){
+    const target=machineAt(game.factory.machines,x,y);
+    const result=target?removeOwnedMachine(game,target.id):{ok:false,message:"No machine in this tile."};
+    if(result.ok){sceneApi?.setFactoryMachines(game.factory.machines);persist();updateHUD();renderPanel();}
+    toast(result.message);return;
   }
-  const machine=MACHINE_TYPES[currentTool];
-  if(game.resources.scrap<machine.cost.scrap||game.resources.alloy<machine.cost.alloy)
-    return toast("Not enough scrap or alloy to place "+machine.name+".");
-  game.resources.scrap-=machine.cost.scrap;
-  game.resources.alloy-=machine.cost.alloy;
-  game.factory.machines.push({ id: "m-" + (++nextMachineId), type: currentTool, x, y, rotation: toolRotation });
-  updateHUD();
-  sceneApi?.setFactoryMachines(game.factory.machines);
-  persist();
-  renderPanel();
-  toast(MACHINE_TYPES[currentTool].name + " placed.");
+  const result=placeOwnedMachine(game,currentTool,x,y,toolRotation,"m-"+(++nextMachineId));
+  if(result.ok){
+    sceneApi?.setFactoryMachines(game.factory.machines);
+    persist();updateHUD();renderPanel();
+  }
+  toast(result.message);
 }
 
 function onPanelClick(event) {
@@ -243,41 +271,61 @@ function onPanelClick(event) {
     setMachineEnabled(game,id,game.factory.production.enabled[id]===false);
     persist();renderPanel();return;
   }
+  const buy=event.target.closest("[data-buy-machine]");
+  if(buy){const result=buyMachine(game,buy.dataset.buyMachine);if(result.ok){persist();updateHUD();renderPanel();}toast(result.message);return;}
   const tool = event.target.closest("[data-tool]");
-  if (tool) { currentTool = tool.dataset.tool; renderPanel(); return; }
+  if (tool) { currentTool = tool.dataset.tool;touchArmedCell=null;renderPanel(); return; }
   const rotate = event.target.closest("[data-rotate]");
-  if (rotate) { toolRotation = (toolRotation + 90) % 360; renderPanel(); return; }
+  if (rotate) { toolRotation = (toolRotation + 90) % 360;touchArmedCell=null;renderPanel(); return; }
   const cell = event.target.closest("[data-cell]");
-  if (cell) { placeAt(Number(cell.dataset.x), Number(cell.dataset.y)); return; }
+  if(cell){
+    const x=Number(cell.dataset.x),y=Number(cell.dataset.y);
+    const armed=touchArmedCell&&touchArmedCell.x===x&&touchArmedCell.y===y&&
+      touchArmedCell.type===currentTool&&touchArmedCell.rotation===toolRotation;
+    previewCell(x,y);
+    if(touchPlacement&&!armed){
+      touchArmedCell={x,y,type:currentTool,rotation:toolRotation};
+      toast("Preview set. Tap again or use PLACE AT PREVIEW.");
+      return;
+    }
+    touchArmedCell=null;placeAt(x,y);return;
+  }
+  if(event.target.closest("[data-factory-confirm]")){
+    if(!hoverCell)return toast("Select a factory tile first.");
+    const {x,y}=hoverCell;touchArmedCell=null;placeAt(x,y);return;
+  }
+  if(event.target.closest("[data-factory-clear-preview]")){
+    hoverCell=null;touchArmedCell=null;refreshFactoryGhost();return;
+  }
   const action = event.target.closest("[data-factory-action]");
   if (!action) return;
   if (action.dataset.factoryAction === "save") {
     persist();
     toast("Factory layout saved to this browser.");
   }
-  if (action.dataset.factoryAction === "reset" && window.confirm("Restore the starter production line? This replaces your current floor layout but preserves your resources, fleet, research and mission progress.")) {
-    refundJobs(game);
-    const defaults=defaultGame().factory;
-    game.factory.machines=defaults.machines;
-    game.factory.production.recipes=defaults.production.recipes;
-    game.factory.production.enabled={};
-    game.factory.production.running=false;
-    // Refund outstanding work and finish any deliveries; don't reset unrelated progress.
+  if(action.dataset.factoryAction==="reset" && window.confirm(
+    "Clear the factory floor? Every placed machine will return to storage. Unfinished production inputs will be refunded."
+  )){
+    const result=clearFactoryLayout(game);
     sceneApi?.setFactoryMachines(game.factory.machines);
     sceneApi?.setFactoryActivity([]);
-    persist();updateHUD();renderPanel();toast("Factory starter line restored.");
+    hoverCell=null;touchArmedCell=null;
+    persist();updateHUD();renderPanel();toast(result.message);
   }
   if(action.dataset.factoryAction==="demo"){
-    if(window.confirm("Install a connected demonstration production line? Your existing floor machines will be replaced; resources and robot designs remain.")){
-      refundJobs(game);
-      const defaults=defaultGame().factory;
-      game.factory.machines=defaults.machines;
-      game.factory.production.recipes=defaults.production.recipes;
-      game.factory.production.enabled={};
-      game.factory.production.running=false;
-      sceneApi?.setFactoryMachines(game.factory.machines);
-      sceneApi?.setFactoryActivity([]);
-      persist();updateHUD();renderPanel();toast("Connected production line installed.");
+    const quote=starterLineQuote(game);
+    if(!quote.affordable)return toast("Need "+quote.cost.scrap+" scrap and "+quote.cost.alloy+" alloy for missing starter equipment.");
+    if(window.confirm("Reconfigure the factory using your owned machines? Missing equipment costs "+
+      quote.cost.scrap+" scrap and "+quote.cost.alloy+" alloy. Extra machines return to storage."
+    )){
+      const result=installStarterLine(game);
+      if(result.ok){
+        sceneApi?.setFactoryMachines(game.factory.machines);
+        sceneApi?.setFactoryActivity([]);
+        hoverCell=null;touchArmedCell=null;
+        persist();updateHUD();renderPanel();
+      }
+      toast(result.message);
     }
   }
 }
@@ -289,7 +337,21 @@ function initUI() {
     const button = event.target.closest("[data-nav]");
     if (button) selectStation(button.dataset.nav);
   });
-  el("panel-body").addEventListener("click", onPanelClick);
+  el("panel-body").addEventListener("click",onPanelClick);
+  el("panel-body").addEventListener("pointerdown",event=>{
+    if(currentStation==="factory"&&event.target.closest("[data-cell]"))
+      touchPlacement=event.pointerType==="touch"||event.pointerType==="pen";
+  });
+  el("panel-body").addEventListener("pointermove",event=>{
+    if(currentStation!=="factory")return;
+    const cell=event.target.closest("[data-cell]");
+    if(cell)previewCell(Number(cell.dataset.x),Number(cell.dataset.y));
+  });
+  el("panel-body").addEventListener("pointerleave",()=>{
+    if(currentStation==="factory"&&!touchPlacement){
+      hoverCell=null;refreshFactoryGhost();
+    }
+  });
   el("panel-body").addEventListener("change", event => {
     if(currentStation==="assembly")builderUI.nameChanged(event);
     if(currentStation==="factory"&&event.target.matches("[data-machine-recipe]")){
@@ -314,7 +376,7 @@ function initUI() {
     if (event.key === "Escape") selectStation("overview");
     if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLTextAreaElement) return;
     if (currentStation === "factory" && (event.key === "r" || event.key === "R")) {
-      toolRotation = (toolRotation + 90) % 360; renderPanel();
+      toolRotation = (toolRotation + 90) % 360;touchArmedCell=null; renderPanel();
     }
   });
 }
@@ -328,6 +390,7 @@ import("./scene.js").then(module => {
     builderUI.selectSocket(socketId);
   });
   sceneApi.setFactoryMachines(game.factory.machines);
+  if(currentStation==="factory")refreshFactoryGhost();
   sceneApi.setFactoryActivity(game.factory.production.deliveries);
   sceneApi.setRobotState(game.builder.draft, game.fleet);
   const loading = el("loading-message");
