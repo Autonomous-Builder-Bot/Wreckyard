@@ -7,7 +7,7 @@ A mobile-friendly, browser-based robot scrapyard management game built with Thre
 - Interactive 3D hangar and assembly platform.
 - Navigable stations for assembly, workshop, research, missions, warehouse, hangar, and factory.
 - Persistent local save data and resource readouts.
-- Factory layout planner: place, rotate, and remove conveyor, forge, assembler, and storage placeholders on a grid. Production networks are deliberately **not simulated yet**.
+- Factory layout planner: place, rotate, and remove conveyors, forges, builders, storage, and generators on a grid; every edit is mirrored in the 3D factory area. Production networks are deliberately **not simulated yet**.
 - Mouse, touch, and keyboard-friendly controls; no build step.
 
 ## Run
@@ -30,3 +30,7 @@ Open with a local static file server (e.g. `python -m http.server 8000`) and vis
 ## License
 
 No license has been specified yet. All original code is currently all rights reserved by the repository owner.
+
+## Factory interaction
+
+Open **Factory** from the sidebar or 3D station hotspot. Select a machine type, tap a tile to place it, rotate conveyor direction with **Rotate** (or **R**), and use **Remove** to erase machines. The Three.js hangar updates to match the saved layout. **Reset Layout** restores only factory machines and preserves inventory and fleet. This is blueprint mode: no resource consumption or manufacturing simulation yet.

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { createFactoryView } from "./factory-view.js";
 
 const COLORS = {
   metal: 0x45575a, dark: 0x1b2c32, mid: 0x2b3f45, trim: 0x73817c,
@@ -226,26 +227,9 @@ export function createHangar(viewport, hotspotLayer, onSelect) {
   line(scene, [9, 3.0, 4.3], [8.35, 2.15, 4.7], 0.17, trim);
   createLabel("WORKSHOP", [8.2, 4.3, 4.1], 2.2);
 
-  // Factory prototype: animated belt, large forge and an automatic builder station.
+  // Planned machines now appear as 3D previews of the editable factory layout.
   floorPad(-9, -4, 11, 11, trim);
-  box(scene, 4.5, 1.1, 1.6, -8.8, 0.8, -3.5, metal);
-  box(scene, 4.2, 0.12, 1.36, -8.8, 1.4, -3.5, rubber);
-  for (let x = -10.7; x <= -6.8; x += 0.45) box(scene, 0.07, 0.09, 1.4, x, 1.48, -3.5, trim);
-  for (let x of [-11.15, -6.45]) {
-    cylinder(scene, 0.5, 0.5, 1.75, x, 0.85, -3.5, metal);
-    cylinder(scene, 0.56, 0.56, 0.14, x, 1.48, -3.5, dark);
-  }
-  box(scene, 2.9, 2.65, 2.35, -12, 1.41, -7, rust);
-  box(scene, 1.4, 1.25, 0.14, -12, 1.4, -5.78, lampMat);
-  box(scene, 2.9, 0.3, 2.65, -12, 2.86, -7, dark);
-  cylinder(scene, 0.47, 0.53, 2.15, -11.6, 4.02, -7, rust);
-  box(scene, 2, 1, 2, -5.9, 0.6, -7.1, metal);
-  box(scene, 1.6, 1.4, 1.5, -5.9, 1.8, -7.1, mid);
-  box(scene, 1.5, 0.17, 0.2, -5.9, 2.12, -6.26, glass);
-  for (let x of [-6.4, -5.4]) line(scene, [x, 2.5, -7], [x, 3.45, -7], 0.13, trim);
-  line(scene, [-6.4, 3.45, -7], [-5.4, 3.45, -7], 0.13, amber);
-  const conveyorPieces = [];
-  for (let i = 0; i < 4; i++) conveyorPieces.push(box(scene, 0.4, 0.35, 0.35, -10.4 + i, 1.76, -3.5, rust));
+  const factoryView = createFactoryView(scene);
   createLabel("FACTORY", [-9, 4.9, -4.2], 2.7);
 
   // Warehouse with shelves and piles of recovered industrial scrap.
@@ -387,9 +371,6 @@ export function createHangar(viewport, hotspotLayer, onSelect) {
       unit.arm.rotation.z = Math.sin(t * 1.25 + unit.phase) * 0.16;
       unit.robot.rotation.y = Math.sin(t * 0.32 + i) * 0.055;
     });
-    conveyorPieces.forEach((piece, i) => {
-      piece.position.x = -10.8 + ((t * 0.48 + i * 1.03) % 4.3);
-    });
     globe.rotation.y = t * 0.29;
     globe.position.y = 2 + Math.sin(t * 1.4) * 0.1;
     missionHolo.rotation.z = t * 0.34;
@@ -417,12 +398,14 @@ export function createHangar(viewport, hotspotLayer, onSelect) {
 
   return {
     focus, resetCamera, resize,
+    setFactoryMachines: factoryView.setMachines,
     dispose() {
       running = false;
       cancelAnimationFrame(frame);
       observer?.disconnect();
       window.removeEventListener("resize", resize);
       controls.dispose();
+      factoryView.dispose();
       renderer.dispose();
       renderer.domElement.remove();
       hotspotLayer.replaceChildren();

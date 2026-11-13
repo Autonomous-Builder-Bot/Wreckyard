@@ -186,6 +186,7 @@ function placeAt(x, y) {
     const target = machineAt(machines, x, y);
     if (!target) return toast("No machine in this tile.");
     game.factory.machines = machines.filter(m => m.id !== target.id);
+    sceneApi?.setFactoryMachines(game.factory.machines);
     persist();
     renderPanel();
     toast(MACHINE_TYPES[target.type].name + " removed.");
@@ -195,6 +196,7 @@ function placeAt(x, y) {
     return toast("Not enough clear floor space for that machine.");
   }
   game.factory.machines.push({ id: "m-" + (++nextMachineId), type: currentTool, x, y, rotation: toolRotation });
+  sceneApi?.setFactoryMachines(game.factory.machines);
   persist();
   renderPanel();
   toast(MACHINE_TYPES[currentTool].name + " placed.");
@@ -219,6 +221,7 @@ function onPanelClick(event) {
   if (action.dataset.factoryAction === "reset" && window.confirm("Reset the factory floor to its starter layout?")) {
     game.factory = defaultGame().factory;
     // Do not reset unrelated inventory or fleet when restoring the default layout.
+    sceneApi?.setFactoryMachines(game.factory.machines);
     persist(); renderPanel(); toast("Factory floor reset.");
   }
 }
@@ -251,6 +254,7 @@ initUI();
 // Keep UI functional if external Three.js modules fail to load.
 import("./scene.js").then(module => {
   sceneApi = module.createHangar(el("viewport"), el("hotspots"), selectStation);
+  sceneApi.setFactoryMachines(game.factory.machines);
   const loading = el("loading-message");
   if (loading) loading.remove();
   sceneApi.focus(currentStation);
