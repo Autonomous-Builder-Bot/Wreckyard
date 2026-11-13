@@ -98,8 +98,10 @@ export function createRobotDisplays(scene){
       const arm=socketId.startsWith("arm");
       if(drive)pos[0]=sign*(width/2+.20);
       if(arm)pos[0]=sign*(width/2+.31);
-      if(socketId==="core")pos[1]=1.86;
-      if(socketId.startsWith("top"))pos[1]=1.90;
+      // Separate power unit and weapon turrets vertically and longitudinally.
+      if(socketId==="core"){pos[1]=1.76;pos[2]=-.15;}
+      if(socketId==="top1"){pos[1]=2.16;pos[2]=.44;}
+      if(socketId==="top2"){pos[1]=2.16;pos[2]=-.62;}
       if(socketId==="front")pos[2]=depth/2+.16;
       if(socketId==="back1")pos[2]=-depth/2-.22;
       if(socketId==="back2")pos[2]=-depth/2-.74;
@@ -165,7 +167,7 @@ export function createRobotDisplays(scene){
             cylinder(mount,r*.34,.285,sign*.15,-.04,z,brass,"x");
             for(let j=0;j<6;j++){
               const angle=Math.PI*j/3;
-              cylinder(mount,.045,.29,sign*.17+Math.cos(angle)*r*.49,-.04+Math.sin(angle)*r*.49,z,dark,"x",8);
+              cylinder(mount,.045,.29,sign*.17,-.04+Math.cos(angle)*r*.49,z+Math.sin(angle)*r*.49,dark,"x",8);
             }
           }
           block(mount,.15,.17,.92,sign*.05,.22,0,edge);
