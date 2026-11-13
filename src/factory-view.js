@@ -159,7 +159,8 @@ export function createFactoryView(scene) {
       child.traverse(o=>o.geometry?.dispose());
       models.remove(child);
     }
-    machines.forEach(draw);
+    // Never pass draw directly to forEach: its second argument would be the numeric array index, not the Three.js parent group.
+    machines.forEach(item => draw(item));
   }
   function dispose() {
     setMachines([]);
