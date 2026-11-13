@@ -128,3 +128,12 @@
  .machine-stock-badge{right:5px;top:5px;min-width:19px;height:19px}
  .machine-buy{font-size:9px}
 }
+
+
+/* Factory viewport inspection and model-count diagnostic. */
+.factory-return{display:none;position:absolute;right:18px;top:18px;z-index:15;box-shadow:0 8px 20px #0009}
+.factory-preview-mode .detail-panel{transform:translateX(calc(100% + 40px));opacity:0;pointer-events:none}
+.factory-preview-mode .factory-return{display:block}
+.factory-3d-status{display:inline-block;color:#9bddbd;font-weight:900;white-space:nowrap}
+.factory-model-mismatch{color:#f0a28b}
+@media(max-width:620px){.factory-return{right:10px;top:8px}}
