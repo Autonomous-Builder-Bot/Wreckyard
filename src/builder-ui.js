@@ -137,5 +137,14 @@ export function createRobotBuilder(getGame,onUpdate,toast) {
     onUpdate(false);
     return true;
   }
-  return {markup,click,nameChanged};
+  function selectSocket(id){
+    const game=getGame();
+    if(CHASSIS[game.builder.draft.chassis].slots.includes(id)){
+      slot=id;
+      onUpdate();
+      return true;
+    }
+    return false;
+  }
+  return {markup,click,nameChanged,selectSocket};
 }
