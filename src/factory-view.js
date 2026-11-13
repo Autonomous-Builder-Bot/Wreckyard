@@ -171,5 +171,5 @@ export function createFactoryView(scene) {
     Object.values(m).forEach(material=>material.dispose());
     scene.remove(root);
   }
-  return {setMachines,setGhost,setActivity,animateDeliveries,dispose};
+  return {setMachines,setGhost,setActivity,animateDeliveries,modelCount:()=>models.children.length,dispose};
 }
