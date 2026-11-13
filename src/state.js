@@ -1,5 +1,8 @@
+import { STARTER_DESIGN, normalizeDesign, PARTS, designStats } from "./robot-data.js";
+import { starterRobot, MAX_FLEET, MAX_BLUEPRINTS } from "./robot-logic.js";
+
 export const SAVE_KEY = "wreckyard_save_v1";
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 export const GRID_W = 12;
 export const GRID_H = 8;
 
@@ -22,7 +25,10 @@ export function defaultGame() {
   return {
     version: SAVE_VERSION,
     resources: { scrap: 240, alloy: 35, credits: 800 },
-    fleet: [{ id: "robot-1", name: "SCRAPPER-01", type: "Utility", condition: 84, status: "Docked" }],
+    fleet: [starterRobot()],
+    inventory: { parts: { cutter: 1, scanner: 1 } },
+    blueprints: [],
+    builder: { draft: normalizeDesign(STARTER_DESIGN), editingRobotId: "robot-1", selectedBlueprintId: null },
     factory: { machines: starterFactory.map(m => ({ ...m })) },
     settings: { sound: false },
     updatedAt: Date.now()
@@ -40,7 +46,8 @@ function isValidMachine(m) {
 export function loadGame() {
   try {
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
-    if (!saved || saved.version !== SAVE_VERSION || !saved.factory || !Array.isArray(saved.factory.machines)) return defaultGame();
+    // v1 is migrated in place. Never discard an existing factory layout or inventory.
+    if (!saved || ![1,SAVE_VERSION].includes(saved.version) || !saved.factory || !Array.isArray(saved.factory.machines)) return defaultGame();
     const fresh = defaultGame();
     const valid = saved.factory.machines.filter(isValidMachine).slice(0, GRID_W * GRID_H).map(m => ({
       id: String(m.id).slice(0, 60), type: m.type, x: m.x, y: m.y,
@@ -62,6 +69,39 @@ export function loadGame() {
         if (typeof saved.resources[k] === "number" && Number.isFinite(saved.resources[k])) fresh.resources[k] = Math.max(0, Math.floor(saved.resources[k]));
       }
     }
+    if (Array.isArray(saved.fleet)) {
+      fresh.fleet = saved.fleet.slice(0,MAX_FLEET).filter(r=>r && typeof r==="object").map((r,i)=>{
+        const design=normalizeDesign(r.design || {...STARTER_DESIGN,name:r.name||STARTER_DESIGN.name});
+        const stats=designStats(design);
+        return {id:String(r.id||"robot-"+i).slice(0,80),name:design.name,
+          type:stats.salvage>=stats.damage?"Utility":"Combat",
+          condition:Number.isFinite(r.condition)?Math.max(0,Math.min(100,Math.round(r.condition))):100,
+          status:"Docked",design};
+      });
+      if (!fresh.fleet.length) fresh.fleet=[starterRobot()];
+    }
+    if(saved.version===SAVE_VERSION) {
+      if(saved.inventory && saved.inventory.parts && typeof saved.inventory.parts==="object") {
+        fresh.inventory.parts={};
+        for(const [id,count] of Object.entries(saved.inventory.parts)){
+          if(PARTS[id] && Number.isSafeInteger(count) && count>0)fresh.inventory.parts[id]=Math.min(count,9999);
+        }
+      }
+      if(Array.isArray(saved.blueprints)) {
+        fresh.blueprints=saved.blueprints.slice(0,MAX_BLUEPRINTS).filter(b=>b && typeof b==="object" && typeof b.id==="string")
+          .map(b=>({id:b.id.slice(0,80),design:normalizeDesign(b.design)}));
+      }
+      if(saved.builder && typeof saved.builder==="object") {
+        fresh.builder.draft=normalizeDesign(saved.builder.draft);
+        fresh.builder.editingRobotId=fresh.fleet.some(r=>r.id===saved.builder.editingRobotId)?saved.builder.editingRobotId:null;
+        fresh.builder.selectedBlueprintId=fresh.blueprints.some(b=>b.id===saved.builder.selectedBlueprintId)?saved.builder.selectedBlueprintId:null;
+      }
+    } else {
+      // Preserve legacy robot names and promote its design into the editor.
+      fresh.builder.draft=normalizeDesign(fresh.fleet[0].design);
+      fresh.builder.editingRobotId=fresh.fleet[0].id;
+    }
+    fresh.version=SAVE_VERSION;
     return fresh;
   } catch (error) {
     console.warn("Wreckyard save unavailable; starting a new local session.", error);
