@@ -265,7 +265,10 @@ initUI();
 
 // Keep UI functional if external Three.js modules fail to load.
 import("./scene.js").then(module => {
-  sceneApi = module.createHangar(el("viewport"), el("hotspots"), selectStation);
+  sceneApi = module.createHangar(el("viewport"), el("hotspots"), selectStation, socketId => {
+    document.querySelector(".main-stage")?.classList.remove("builder-preview-mode");
+    builderUI.selectSocket(socketId);
+  });
   sceneApi.setFactoryMachines(game.factory.machines);
   sceneApi.setRobotState(game.builder.draft, game.fleet);
   const loading = el("loading-message");
