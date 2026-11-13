@@ -387,6 +387,7 @@ export function createHangar(viewport, hotspotLayer, onSelect, onSocketSelect) {
   return {
     focus, resetCamera, resize,
     setFactoryMachines: factoryView.setMachines,
+    setFactoryGhost: factoryView.setGhost,
     setFactoryActivity: factoryView.setActivity,
     setRobotState(draft,fleet){robotDisplays.updateDraft(draft);robotDisplays.updateFleet(fleet);},
     dispose() {
