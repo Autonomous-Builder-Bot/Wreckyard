@@ -46,14 +46,21 @@ export function createRobotDisplays(scene) {
     cyl(group,0.13,0.14,0,1.93,-0.38,teal);
     for(const socketId of chassis.slots){
       const part=PARTS[design.slots[socketId]];
-      if(!part)continue;
       const socket=SOCKETS[socketId];
       const mount=new THREE.Group();
       const p=[...socket.pos];
       if(socketId==="driveL"||socketId==="driveR")p[0]=Math.sign(p[0])*(width/2+0.14);
       if(socketId==="armL"||socketId==="armR"||socketId==="arm3"||socketId==="arm4")p[0]=Math.sign(p[0])*(width/2+0.28);
-      mount.position.set(...p);group.add(mount);
+      mount.position.set(...p);
+      mount.userData.socketId=socketId;
+      group.add(mount);
       const forward=socketId==="front"||socketId.startsWith("arm");
+      if(!part) {
+        // Empty slots remain visible and tappable on the assembly platform.
+        cube(mount,0.24,0.22,0.24,0,0,0,orange);
+        cube(mount,0.11,0.24,0.11,0,0.15,0,teal);
+        continue;
+      }
       if(part.category==="mobility"){
         if(part.id==="track"){
           cube(mount,0.50,0.66,1.18,0,0,0,rubber);
@@ -130,8 +137,18 @@ export function createRobotDisplays(scene) {
     const spots=[[10.8,0.14,1.25],[12.75,0.14,-0.92],[10.45,0.14,-1.25],[12.7,0.14,1.3]];
     fleet.slice(0,4).forEach((robot,index)=>build(robot.design||{},fleetRoot,spots[index],0.51));
   }
+  function pickSocket(raycaster) {
+    for(const hit of raycaster.intersectObjects(draftRoot.children,true)){
+      let node=hit.object;
+      while(node && node!==draftRoot){
+        if(node.userData?.socketId)return node.userData.socketId;
+        node=node.parent;
+      }
+    }
+    return null;
+  }
   function dispose(){
     clear(draftRoot);clear(fleetRoot);mats.forEach(x=>x.dispose());scene.remove(root);
   }
-  return {updateDraft,updateFleet,dispose};
+  return {updateDraft,updateFleet,pickSocket,dispose};
 }
