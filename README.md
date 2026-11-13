@@ -6,19 +6,21 @@ A mobile-friendly browser game where players design modular robots, operate a sc
 
 - **Interactive 3D hangar:** assembly, workshop, research, missions, warehouse, factory and fleet stations
 - **Modular robot designer:** three chassis, 28 interchangeable parts, socket-based construction, live 3D preview, stats and resource costs
-- **Manufacturing:** place conveyors, forges, builders, storages and generators on a 12 × 8 grid
+- **Manufacturing:** place conveyors, forges, builders, storages and generators on a 12 × 8 grid; hovering a tile shows the full machine footprint ghost in 2D and 3D, with invalid placements highlighted red
 - **Production simulation:** powered forges consume four scrap to make two alloy; builders select a part recipe and manufacture real inventory using scrap/alloy
 - **Real routing:** directed conveyors must link machine input and output; completed batches visibly travel to their destination in the Three.js factory
 - **Manual controls:** start/pause factory, enable/disable individual processors, select assembly recipes, view live output stats and power capacity
 - **Scavenging missions:** assign an actual robot to an expedition; cargo, salvage tools, speed, and durability affect rewards and wear
 - **Research:** seven permanent upgrades across industry and exploration, including boosted smelting, logistics, automation, new regions and factory efficiency
 - **Maintenance:** repair damaged robots with resources before another expedition
-- **Persistence:** versioned local saves preserve machines, research, active expeditions, factory progress, inventories and blueprints; version 1/2 files migrate without being wiped
+- **Machine ownership:** place from purchased machine inventory; available counts appear at the top right of each factory palette item. Removing or clearing the layout returns machines to inventory.
+- **Robot visuals:** unified chassis brackets, universal connector collars, support beams, rebuilt mobility modules, articulated tools, and separated turret/power mounting positions.
+- **Persistence:** versioned local saves preserve machines, research, active expeditions, factory progress, inventories and blueprints; version 1/2/3 files migrate without being wiped
 - **Offline expedition completion:** expeditions complete using timestamps, but factory production progresses only while the page is open and visible
 
 ### How to play
 
-1. Open the **Factory** station. An entirely new game has a working starter production line; older saves keep their factory layout. If your previous layout is unconnected, choose **INSTALL STARTER LINE** (this changes only the factory floor, not your fleet, resources or research).
+1. Open the **Factory** station. An entirely new game has a working starter production line; older saves keep their factory layout. If your previous layout is unconnected, choose **INSTALL STARTER LINE**. This reuses machines you own and purchases any missing components if affordable; no other progress is discarded.
 2. Select an assembler recipe under **Machine operations**. The default starter recipe is a scrap wheel. Press **START PRODUCTION**. Forging and construction consume your resources and then deliver output to the shared warehouse. The glow of moving packages marks completed goods in transit.
 3. Open **Missions**, select a scavenger robot and deploy it to **The Rust Flats**. The expedition completes on a timer. Better salvage tools, cargo space and speed improve the haul.
 4. Collect returned materials and credits, research new technology under **Research**, fix wear in **Workshop**, and use built parts and resources in **Assembly** to refit or construct new machines.
@@ -31,7 +33,8 @@ A storage, forge, or builder can hand off materials directly to an adjacent proc
 - Builders require a directed input from storage or a forge, an output to storage, and generator power. Builders make **one selected robot component per cycle**. Their recipes consume discounted scrap/alloy compared with immediate manual assembly; Precision Manufacturing discounts them further.
 - Generators each add **30 units** of facility power; conveyors draw 1 unit, forges 8, builders 10. Storage uses no power.
 - In-production jobs reserve materials at the beginning of the cycle. Disconnecting a conveyor pauses its affected processor. Removing a machine refunds the resources reserved for its unfinished work. Replacing the factory floor also refunds unfinished jobs and deposits goods already produced but still in transit.
-- Placing machines costs resources. The starter layout can be reinstalled without affecting any non-factory player progress.
+- Factory machines are owned equipment. **BUY +1** spends resources and adds an unplaced machine to stock. Placing one consumes stock, not additional scrap. **Remove** returns it to stock. **Clear Layout** refunds unfinished production inputs, deposits goods already made, and returns every placed machine to storage. **Install Starter Line** reuses machines on the floor and in storage, paying only for missing equipment, and never gives free duplicates.
+- A green ghost shows the proposed footprint on valid grid space; red indicates an overlap, out-of-bounds placement or empty stock. Desktop users hover and click to place. On phones, the first tap previews and a second tap (or **Place at Preview**) confirms. The ghost also appears over the Three.js factory floor.
 
 The current model uses shared warehouse totals rather than fully local, per-machine input buffers. Conveyor **output transport** is animated and delivery completion controls when products enter inventory. Per-item belt physics and complex logistics are possible later, but not yet part of this milestone.
 
@@ -63,7 +66,7 @@ The tests cover the robot builder, factory routing and resources, missions, rese
 
 1. **Step 1 — Hangar and station navigation:** complete.
 2. **Step 2 — Modular robot construction and blueprints:** complete.
-3. **Step 3 — Working factory, scavenging, research, and repairs:** implemented.
+3. **Step 3 — Working factory, scavenging, research, and repairs:** implemented, including the factory machine inventory/placement overhaul.
 4. **Next milestone — Visual overhaul and combat:** make procedural components fit more convincingly, improve attachment animation and visual coherence; then build animated combat scenarios.
 
 ## License
