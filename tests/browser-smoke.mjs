@@ -47,6 +47,12 @@ try{
   await page.locator('[data-cell][data-x="2"][data-y="6"]').hover();
   assert.equal(await page.locator("#factory-ghost").isVisible(),true);
   await page.screenshot({path:"artifacts/factory-before.png",fullPage:true});
+  await page.locator('[data-factory-preview]').click();
+  assert.equal(await page.locator(".main-stage").evaluate(node=>node.classList.contains("factory-preview-mode")),true);
+  await page.waitForTimeout(1400);
+  await page.screenshot({path:"artifacts/factory-3d-inspection.png",fullPage:true});
+  await page.locator("#factory-return").click();
+  assert.equal(await page.locator(".main-stage").evaluate(node=>node.classList.contains("factory-preview-mode")),false);
   await page.locator('[data-factory-action="reset"]').click();
   await page.waitForFunction(()=>document.querySelector("#factory-3d-status")?.textContent==="3D: 0 / 0");
   assert.equal(await page.locator(".factory-placed").count(),0);
