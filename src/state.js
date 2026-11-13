@@ -1,8 +1,9 @@
 import { STARTER_DESIGN, normalizeDesign, PARTS, designStats } from "./robot-data.js";
 import { starterRobot, MAX_FLEET, MAX_BLUEPRINTS } from "./robot-logic.js";
+import { RESEARCH, REGIONS } from "./progression.js";
 
 export const SAVE_KEY = "wreckyard_save_v1";
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 export const GRID_W = 12;
 export const GRID_H = 8;
 
@@ -15,10 +16,17 @@ export const MACHINE_TYPES = {
 };
 
 const starterFactory = [
-  { id: "m1", type: "forge", x: 2, y: 2, rotation: 0 },
-  { id: "m2", type: "conveyor", x: 4, y: 3, rotation: 0 },
-  { id: "m3", type: "conveyor", x: 5, y: 3, rotation: 0 },
-  { id: "m4", type: "storage", x: 7, y: 2, rotation: 0 }
+  // Complete, one-click playable production chain:
+  // input storage -> two belts -> forge -> two belts -> builder -> output storage
+  { id: "m1", type: "storage", x: 0, y: 2, rotation: 0 },
+  { id: "m2", type: "conveyor", x: 2, y: 2, rotation: 0 },
+  { id: "m3", type: "conveyor", x: 3, y: 2, rotation: 0 },
+  { id: "m4", type: "forge", x: 4, y: 1, rotation: 0 },
+  { id: "m5", type: "conveyor", x: 6, y: 2, rotation: 0 },
+  { id: "m6", type: "conveyor", x: 7, y: 2, rotation: 0 },
+  { id: "m7", type: "assembler", x: 8, y: 1, rotation: 0 },
+  { id: "m8", type: "storage", x: 10, y: 1, rotation: 0 },
+  { id: "m9", type: "generator", x: 5, y: 5, rotation: 0 }
 ];
 
 export function defaultGame() {
@@ -29,7 +37,9 @@ export function defaultGame() {
     inventory: { parts: { cutter: 1, scanner: 1 } },
     blueprints: [],
     builder: { draft: normalizeDesign(STARTER_DESIGN), editingRobotId: "robot-1", selectedBlueprintId: null },
-    factory: { machines: starterFactory.map(m => ({ ...m })) },
+    factory: { machines: starterFactory.map(m => ({ ...m })), production: {running:false,jobs:{},deliveries:[],recipes:{m7:"wheel"},enabled:{},totals:{alloy:0,parts:0}} },
+    research: {unlocked:[]},
+    missions: {active:[],history:[],selectedRobotId:"robot-1"},
     settings: { sound: false },
     updatedAt: Date.now()
   };
@@ -47,7 +57,7 @@ export function loadGame() {
   try {
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
     // v1 is migrated in place. Never discard an existing factory layout or inventory.
-    if (!saved || ![1,SAVE_VERSION].includes(saved.version) || !saved.factory || !Array.isArray(saved.factory.machines)) return defaultGame();
+    if (!saved || ![1,2,SAVE_VERSION].includes(saved.version) || !saved.factory || !Array.isArray(saved.factory.machines)) return defaultGame();
     const fresh = defaultGame();
     const valid = saved.factory.machines.filter(isValidMachine).slice(0, GRID_W * GRID_H).map(m => ({
       id: String(m.id).slice(0, 60), type: m.type, x: m.x, y: m.y,
@@ -80,7 +90,7 @@ export function loadGame() {
       });
       if (!fresh.fleet.length) fresh.fleet=[starterRobot()];
     }
-    if(saved.version===SAVE_VERSION) {
+    if(saved.version>=2) {
       if(saved.inventory && saved.inventory.parts && typeof saved.inventory.parts==="object") {
         fresh.inventory.parts={};
         for(const [id,count] of Object.entries(saved.inventory.parts)){
@@ -101,6 +111,74 @@ export function loadGame() {
       fresh.builder.draft=normalizeDesign(fresh.fleet[0].design);
       fresh.builder.editingRobotId=fresh.fleet[0].id;
     }
+    if(saved.version===SAVE_VERSION) {
+      const existingIds=new Set(fresh.factory.machines.map(m=>m.id));
+      if(saved.factory.production && typeof saved.factory.production==="object"){
+        const old=saved.factory.production,prod=fresh.factory.production;
+        prod.running=old.running===true;
+        prod.recipes={}; prod.enabled={};prod.jobs={};prod.deliveries=[];
+        if(old.recipes && typeof old.recipes==="object")for(const [id,part]of Object.entries(old.recipes)){
+          if(existingIds.has(id)&&PARTS[part])prod.recipes[id]=part;
+        }
+        if(old.enabled && typeof old.enabled==="object")for(const [id,on]of Object.entries(old.enabled)){
+          if(existingIds.has(id))prod.enabled[id]=on!==false;
+        }
+        function safeCost(cost){
+          if(!cost||typeof cost!=="object")return null;
+          const n={};
+          for(const id of ["scrap","alloy"])if(Number.isSafeInteger(cost[id])&&cost[id]>=0&&cost[id]<=100000)n[id]=cost[id];
+          return Object.keys(n).length?n:null;
+        }
+        function safePacket(item){
+          if(!item||!["alloy","part"].includes(item.kind))return null;
+          if(item.kind==="part"&&!PARTS[item.part])return null;
+          if(!Number.isInteger(item.quantity)||item.quantity<1||item.quantity>100)return null;
+          if(!Array.isArray(item.path)||item.path.length<2||item.path.length>100)return null;
+          const path=item.path.map(p=>({x:Number(p?.x),y:Number(p?.y)}));
+          if(path.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y)))return null;
+          const duration=Number(item.duration),elapsed=Number(item.elapsed);
+          if(!Number.isFinite(duration)||duration<=0||duration>600||
+             !Number.isFinite(elapsed)||elapsed<0||elapsed>600)return null;
+          return {kind:item.kind,part:item.kind==="part"?item.part:null,
+            quantity:item.quantity,path,duration,elapsed};
+        }
+        if(old.jobs && typeof old.jobs==="object")for(const [id,job]of Object.entries(old.jobs)){
+          if(!existingIds.has(id))continue;
+          const cost=safeCost(job?.cost),packet=safePacket({...job?.output,path:job?.path,duration:job?.duration,elapsed:job?.elapsed});
+          if(cost&&packet)prod.jobs[id]={machineId:id,cost,elapsed:packet.elapsed,duration:packet.duration,
+            output:{kind:packet.kind,part:packet.part,quantity:packet.quantity},path:packet.path};
+        }
+        if(Array.isArray(old.deliveries))prod.deliveries=old.deliveries.slice(0,120).map(safePacket).filter(Boolean);
+        if(old.totals)for(const key of ["alloy","parts"]){
+          if(Number.isSafeInteger(old.totals[key])&&old.totals[key]>=0)prod.totals[key]=old.totals[key];
+        }
+      }
+      if(saved.research && Array.isArray(saved.research.unlocked)){
+        fresh.research.unlocked=[...new Set(saved.research.unlocked.filter(id=>Object.hasOwn(RESEARCH,id)))];
+      }
+      if(saved.missions && typeof saved.missions==="object"){
+        const old=saved.missions;
+        const units=new Set(fresh.fleet.map(r=>r.id));
+        if(Array.isArray(old.active)){
+          const busy=new Set();
+          fresh.missions.active=old.active.slice(0,MAX_FLEET).filter(m=>{
+            if(!m||!units.has(m.robotId)||busy.has(m.robotId)||!REGIONS[m.regionId]||
+              !Number.isFinite(m.endsAt)||!Number.isFinite(m.startedAt)||!m.reward)return false;
+            if(["scrap","alloy","credits","wear"].some(k=>!Number.isSafeInteger(m.reward[k])||m.reward[k]<0||m.reward[k]>10000))return false;
+            busy.add(m.robotId);return true;
+          }).map(m=>({id:String(m.id).slice(0,80),robotId:m.robotId,regionId:m.regionId,
+            startedAt:m.startedAt,endsAt:m.endsAt,
+            reward:{scrap:m.reward.scrap,alloy:m.reward.alloy,credits:m.reward.credits,wear:m.reward.wear}}));
+        }
+        if(Array.isArray(old.history))fresh.missions.history=old.history.slice(0,20);
+        if(units.has(old.selectedRobotId))fresh.missions.selectedRobotId=old.selectedRobotId;
+        for(const unit of fresh.fleet){
+          unit.status=fresh.missions.active.some(m=>m.robotId===unit.id)?"Scavenging":"Docked";
+        }
+      }
+    }
+    // Version 2 saves keep their original factory, resources, fleet, and blueprints.
+    // They can install the new starter line without replacing the rest of their progress.
     fresh.version=SAVE_VERSION;
     return fresh;
   } catch (error) {
