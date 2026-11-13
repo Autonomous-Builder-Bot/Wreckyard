@@ -36,8 +36,8 @@ export function findRoute(machines,source,target){
     if(next.id===target.id)return [...path,center(target)];
     if(next.type==="conveyor"&&!visited.has(next.id)){
       const [nx,ny]=DIRS[(next.rotation/90)%4]||DIRS[0];
-      // Next belt must accept the packet from the current belt's direction.
-      if(nx===dx&&ny===dy)queue.push({m:next,path:[...path,{x:next.x,y:next.y}]});
+      // A belt accepts inputs from behind OR the side, but never from its output face.
+      if(!(nx===-dx&&ny===-dy))queue.push({m:next,path:[...path,{x:next.x,y:next.y}]});
     }
   }
   return null;
