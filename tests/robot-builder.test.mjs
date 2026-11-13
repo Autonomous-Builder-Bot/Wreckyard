@@ -79,7 +79,7 @@ test("version 1 saves preserve resources and factory tiles", () => {
   };
   globalThis.localStorage={getItem:k=>k===SAVE_KEY?JSON.stringify(legacy):null,setItem:()=>{}};
   const game=loadGame();
-  assert.equal(game.version,2);
+  assert.equal(game.version,3);
   assert.equal(game.resources.scrap,97);
   assert.equal(game.factory.machines[0].id,"abc");
   assert.equal(game.fleet[0].name,"OLDBOT");
