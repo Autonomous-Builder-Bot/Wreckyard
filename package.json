@@ -1,0 +1,10 @@
+{
+  "name": "wreckyard",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "description": "Browser-based robot design and factory management game."
+}
