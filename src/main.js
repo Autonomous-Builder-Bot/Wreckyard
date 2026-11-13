@@ -228,6 +228,46 @@ function previewCell(x,y){
   refreshFactoryGhost();
 }
 
+function refreshFactoryReadouts() {
+  if(currentStation!=="factory")return;
+  const panel=el("panel-body"),report=factoryStatus(game);
+  const values=[
+    report.power.used+" / "+report.power.capacity,
+    report.active+"/"+report.processors.length,
+    String(report.inFlight),
+    report.totals.parts.toLocaleString()
+  ];
+  panel.querySelectorAll(".production-metrics b").forEach((node,i)=>{
+    if(i<values.length&&node.textContent!==values[i])node.textContent=values[i];
+  });
+  const statuses=panel.querySelectorAll(".production-machine");
+  report.processors.forEach((entry,i)=>{
+    const card=statuses[i];if(!card)return;
+    const label=card.querySelector(".production-signal");
+    if(label){
+      label.textContent=entry.reason||(entry.job?"WORKING":"READY");
+      label.classList.toggle("online",!entry.reason);
+      label.classList.toggle("offline",Boolean(entry.reason));
+    }
+    const progress=entry.job?Math.min(100,Math.floor(entry.job.elapsed/entry.job.duration*100)):0;
+    const text=card.querySelector(".production-machine-footer span");
+    if(text)text.textContent=entry.job?"Cycle "+progress+"%":entry.reason?"Needs attention":"Waiting for materials";
+    const bar=card.querySelector(".builder-meter-track i");
+    if(bar)bar.style.width=progress+"%";
+  });
+}
+function refreshMissionReadouts() {
+  const now=Date.now();
+  el("panel-body").querySelectorAll("[data-mission-clock]").forEach(node=>{
+    const mission=game.missions.active.find(m=>m.id===node.dataset.missionClock);
+    if(!mission)return;
+    const seconds=Math.max(0,Math.ceil((mission.endsAt-now)/1000));
+    node.textContent=seconds+"s remaining";
+    const bar=node.parentElement?.querySelector(".builder-meter-track i");
+    if(bar)bar.style.width=Math.max(0,Math.min(100,Math.floor((now-mission.startedAt)/(mission.endsAt-mission.startedAt)*100)))+"%";
+  });
+}
+
 function placeAt(x,y){
   if(currentTool==="erase"){
     const target=machineAt(game.factory.machines,x,y);
@@ -431,12 +471,10 @@ window.setInterval(()=>{
       sceneApi?.setRobotState(game.builder.draft,game.fleet);
     }
   }
-  // Keep expedition countdowns and machine progress fresh without resetting
-  // an open dropdown or interrupting other editor interactions.
-  if(ticks%4===0 && (currentStation==="factory"||currentStation==="missions")){
-    if(!el("panel-body").contains(document.activeElement)||
-       !["SELECT","INPUT"].includes(document.activeElement.tagName))renderPanel();
-  }
+  // Never replace the factory panel on a timer: doing so destroys elements
+  // between pointerdown and click on touch devices (Clear Layout becomes untappable).
+  if(currentStation==="factory")refreshFactoryReadouts();
+  if(currentStation==="missions")refreshMissionReadouts();
 },250);
 document.addEventListener("visibilitychange",()=>{lastTick=performance.now();if(document.hidden)persist();});
 window.addEventListener("pagehide",()=>persist());
