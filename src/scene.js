@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { createFactoryView } from "./factory-view.js";
+import { createRobotDisplays } from "./robot-view.js";
 
 const COLORS = {
   metal: 0x45575a, dark: 0x1b2c32, mid: 0x2b3f45, trim: 0x73817c,
@@ -182,38 +183,8 @@ export function createHangar(viewport, hotspotLayer, onSelect) {
     cylinder(scene, 0.12, 0.12, 0.19, x, 1.12, z, lampMat);
   }
 
-  const animRobots = [];
-  function makeRobot(x, y, z, scale = 1, color = COLORS.orange, active = true) {
-    const robot = new THREE.Group();
-    robot.position.set(x, y, z);
-    robot.scale.setScalar(scale);
-    scene.add(robot);
-    const paint = mat(color, 0.55, 0.4);
-    box(robot, 1.4, 0.9, 1.25, 0, 1.3, 0, paint);
-    box(robot, 1.14, 0.17, 1, 0, 1.78, 0, dark);
-    box(robot, 0.89, 0.46, 0.8, 0, 2.15, 0.2, trim);
-    box(robot, 0.65, 0.18, 0.09, 0, 2.18, 0.64, glass);
-    box(robot, 0.65, 0.1, 0.14, 0, 1.18, 0.67, dark);
-    for (let sx of [-1, 1]) {
-      box(robot, 0.27, 0.5, 0.42, sx * 0.8, 1.4, 0, metal);
-      box(robot, 0.24, 0.65, 0.28, sx * 0.96, 0.91, 0, paint);
-      cylinder(robot, 0.35, 0.35, 0.24, sx * 0.69, 0.44, 0.45, rubber).rotation.z = Math.PI / 2;
-      cylinder(robot, 0.35, 0.35, 0.24, sx * 0.69, 0.44, -0.45, rubber).rotation.z = Math.PI / 2;
-      cylinder(robot, 0.1, 0.1, 0.28, sx * 0.84, 0.44, 0.45, trim).rotation.z = Math.PI / 2;
-      cylinder(robot, 0.1, 0.1, 0.28, sx * 0.84, 0.44, -0.45, trim).rotation.z = Math.PI / 2;
-    }
-    const arm = new THREE.Group();
-    arm.position.set(0.82, 1.58, 0);
-    robot.add(arm);
-    box(arm, 0.23, 0.63, 0.26, 0.07, -0.32, 0, trim);
-    box(arm, 0.43, 0.15, 0.26, 0.12, -0.68, 0, metal);
-    if (active) animRobots.push({ robot, arm, baseY: y, phase: x * 0.27 + z * 0.17 });
-    return robot;
-  }
-
-  makeRobot(0, 0.62, 2, 1.05);
-  makeRobot(10.9, 0.1, 1.3, 0.75, COLORS.glass);
-  makeRobot(12.9, 0.1, -1, 0.7, COLORS.rust);
+  // Both the assembly robot and actual fleet use the player's modular designs.
+  const robotDisplays = createRobotDisplays(scene);
 
   // Workshop, welding equipment and maintenance gantry.
   floorPad(8.5, 5.1, 7.4, 6.5);
@@ -366,11 +337,6 @@ export function createHangar(viewport, hotspotLayer, onSelect) {
     if (!running) return;
     frame = requestAnimationFrame(tick);
     const t = clock.getElapsedTime();
-    animRobots.forEach((unit, i) => {
-      unit.robot.position.y = unit.baseY + Math.sin(t * 1.75 + unit.phase) * 0.026;
-      unit.arm.rotation.z = Math.sin(t * 1.25 + unit.phase) * 0.16;
-      unit.robot.rotation.y = Math.sin(t * 0.32 + i) * 0.055;
-    });
     globe.rotation.y = t * 0.29;
     globe.position.y = 2 + Math.sin(t * 1.4) * 0.1;
     missionHolo.rotation.z = t * 0.34;
@@ -399,6 +365,7 @@ export function createHangar(viewport, hotspotLayer, onSelect) {
   return {
     focus, resetCamera, resize,
     setFactoryMachines: factoryView.setMachines,
+    setRobotState(draft,fleet){robotDisplays.updateDraft(draft);robotDisplays.updateFleet(fleet);},
     dispose() {
       running = false;
       cancelAnimationFrame(frame);
@@ -406,6 +373,7 @@ export function createHangar(viewport, hotspotLayer, onSelect) {
       window.removeEventListener("resize", resize);
       controls.dispose();
       factoryView.dispose();
+      robotDisplays.dispose();
       renderer.dispose();
       renderer.domElement.remove();
       hotspotLayer.replaceChildren();
