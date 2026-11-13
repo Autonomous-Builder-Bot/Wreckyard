@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0d1419">
+  <meta name="description" content="Wreckyard: build robots, expand a factory, and reclaim a mechanical wasteland.">
+  <title>Wreckyard — The Hangar</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="importmap">
+  {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.176.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/"}}
+  </script>
+  <script type="module" src="./src/main.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark">W</div><div><strong>WRECKYARD</strong><span>SCRAPWORKS / SECTOR 01</span></div></div>
+      <div class="resource-bar" aria-label="Current inventory">
+        <div class="resource-chip"><span class="resource-symbol">◇</span><span><b id="hud-scrap">240</b><small>SCRAP</small></span></div>
+        <div class="resource-chip"><span class="resource-symbol">▣</span><span><b id="hud-alloy">35</b><small>ALLOY</small></span></div>
+        <div class="resource-chip"><span class="resource-symbol">₡</span><span><b id="hud-credits">800</b><small>CREDITS</small></span></div>
+      </div>
+      <div class="top-actions"><span class="save-status" id="save-status">LOCAL SAVE</span><button class="icon-button" id="save-button" type="button" title="Save game" aria-label="Save game">↧</button><button class="icon-button" id="home-button" type="button" title="Return to hangar overview" aria-label="Hangar overview">⌂</button></div>
+    </header>
+    <div class="game-layout">
+      <nav class="sidebar" id="station-nav" aria-label="Game stations"></nav>
+      <main class="main-stage">
+        <div id="viewport" class="viewport"><div class="loading-message" id="loading-message">STARTING HANGAR SYSTEMS…</div></div>
+        <div class="scene-vignette" aria-hidden="true"></div>
+        <div class="stage-heading"><div class="eyebrow">OUTPOST 01 <span class="heading-separator">//</span> FACILITY OPERATIONS</div><h1 id="stage-title">THE HANGAR</h1><p id="stage-subtitle">Build machines. Recover the wasteland.</p></div>
+        <div id="hotspots" class="hotspots" aria-label="Clickable stations in the hangar"></div>
+        <div class="scene-hint" id="scene-hint">DRAG TO ORBIT <span>·</span> SCROLL / PINCH TO ZOOM <span>·</span> TAP A STATION</div>
+        <div class="stage-bottom"><div class="facility-status"><span class="status-light"></span> FACILITY ONLINE <span class="status-separator">/</span> <span id="fleet-count">01</span> UNIT REGISTERED</div><button class="small-button" id="camera-reset" type="button">RESET VIEW ↺</button></div>
+        <aside class="detail-panel is-closed" id="detail-panel" aria-hidden="true">
+          <div class="panel-heading"><div><span class="eyebrow" id="panel-kicker">FACILITY / STATION</span><h2 id="panel-title">STATION</h2></div><button type="button" class="icon-button panel-close" id="close-panel" aria-label="Close panel">×</button></div>
+          <div class="panel-scroll" id="panel-body"></div>
+        </aside>
+      </main>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </div>
+</body>
+</html>
