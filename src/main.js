@@ -1,4 +1,4 @@
-import { loadGame, saveGame, resetGame, GRID_W, GRID_H, MACHINE_TYPES, canPlace, machineAt, machineFootprint } from "./state.js";
+import { loadGame, saveGame, defaultGame, GRID_W, GRID_H, MACHINE_TYPES, canPlace, machineAt, machineFootprint } from "./state.js";
 
 const STATIONS = [
   { id: "overview", label: "Hangar", icon: "⌂", title: "THE HANGAR", subtitle: "Build machines. Recover the wasteland." },
@@ -217,7 +217,7 @@ function onPanelClick(event) {
     toast("Factory layout saved to this browser.");
   }
   if (action.dataset.factoryAction === "reset" && window.confirm("Reset the factory floor to its starter layout?")) {
-    game.factory = resetGame().factory;
+    game.factory = defaultGame().factory;
     // Do not reset unrelated inventory or fleet when restoring the default layout.
     persist(); renderPanel(); toast("Factory floor reset.");
   }
