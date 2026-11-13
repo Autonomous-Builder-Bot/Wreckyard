@@ -1,7 +1,7 @@
 import { loadGame, saveGame, defaultGame, GRID_W, GRID_H, MACHINE_TYPES, canPlace, machineAt, machineFootprint } from "./state.js";
 import { createRobotBuilder } from "./builder-ui.js";
 import { PARTS } from "./robot-data.js";
-import { ensureProduction, advanceFactory, refundJobs, removeMachineProduction, toggleProduction, setMachineRecipe, setMachineEnabled } from "./factory-sim.js";
+import { ensureProduction, advanceFactory, refundJobs, removeMachineProduction, toggleProduction, setMachineRecipe, setMachineEnabled, factoryStatus } from "./factory-sim.js";
 import { ensureProgress, advanceMissions, startMission, purchaseResearch, repairRobot } from "./progression.js";
 import { factoryControls, missionsMarkup, groupedResearchMarkup, workshopMarkup } from "./step3-ui.js";
 
@@ -122,6 +122,9 @@ function cellMarkup(x, y) {
 
 function factoryMarkup() {
   const machines = game.factory.machines;
+  const report=factoryStatus(game);
+  const needsStarter=report.power.capacity===0 || !report.processors.some(p=>p.machine.type==="assembler"&&p.input&&p.output) ||
+    !report.processors.some(p=>p.machine.type==="forge"&&p.input&&p.output);
   let cells = "";
   for (let y = 0; y < GRID_H; y++) for (let x = 0; x < GRID_W; x++) cells += cellMarkup(x, y);
   let area = 0;
@@ -141,8 +144,9 @@ function factoryMarkup() {
       ' ' + m.name + '</strong><small>' + m.width + ' × ' + m.height + ' tiles • ' +
       m.cost.scrap + ' scrap / ' + m.cost.alloy + ' alloy</small></button>';
   }).join("");
-  return '<p class="panel-lead">Design your future production floor. Place forges, conveyors, builders, storage and power generators on the grid. Your layout is automatically saved.</p>' +
-    '<div class="notice cool">LIVE FACTORY — Machines now consume resources, require power, and follow directional conveyor connections. The production switch is below the grid.</div>' +
+  return '<p class="panel-lead">Design your production floor. Connect storage, forges, builders and generators with directional conveyors.</p>' +
+    (needsStarter ? '<div class="notice">This older or incomplete layout does not have a full working production chain. You can rebuild it manually or install a connected starter line without losing your robots, inventory or research.</div><div class="action-row"><button type="button" class="action-button" data-factory-action="demo">INSTALL STARTER LINE</button></div>' : '') +
+    '<div class="notice cool">LIVE FACTORY — Machinery costs resources, uses power and must be connected. Start production below the grid.</div>' +
     '<div class="section-label">Machine palette</div><div class="machine-list">' + tools +
     '<button type="button" class="machine-tool' + (currentTool === "erase" ? ' selected' : '') +
     '" data-tool="erase"><strong>× Remove</strong><small>Delete placed machine</small></button></div>' +
