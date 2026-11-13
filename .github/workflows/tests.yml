@@ -13,3 +13,24 @@ jobs:
           node-version: 22
       - name: Run automated tests
         run: npm test
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install headless Chromium
+        run: |
+          npm install --no-save playwright@1.57.0
+          npx playwright install --with-deps chromium
+      - name: Check actual Three.js factory and mobile controls
+        run: node tests/browser-smoke.mjs
+      - name: Save screenshots for debugging
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wreckyard-browser-smoke
+          path: artifacts/
+          if-no-files-found: ignore
