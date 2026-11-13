@@ -12,7 +12,7 @@
 .builder-tab{border:1px solid #46565a;background:#1d2d32;border-radius:4px;padding:8px 10px;font-size:10px;font-weight:800;color:#b9c5be}
 .builder-tab.selected,.builder-tab:hover{background:#463829;border-color:var(--accent);color:#ffe2ae}
 .builder-field-label{display:block;margin-bottom:6px;font-size:10px;letter-spacing:.1em;color:#a4b6b0;font-weight:900;text-transform:uppercase}
-.builder-name{background:#102128;color:#f1e4d0;border:1px solid #68736b;padding:11px;border-radius:5px;width:100%;font:700 14px inherit;outline:none}
+.builder-name{background:#102128;color:#f1e4d0;border:1px solid #68736b;padding:11px;border-radius:5px;width:100%;font-size:14px;font-weight:700;font-family:inherit;outline:none}
 .builder-name:focus{border-color:var(--accent)}
 .builder-chassis-list{display:grid;grid-template-columns:repeat(1,minmax(0,1fr));gap:7px}
 .builder-chassis{border:1px solid #40565a;border-radius:5px;background:#1b2b31;text-align:left;padding:11px 12px}
