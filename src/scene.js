@@ -19,7 +19,7 @@ const POSITIONS = {
   fleet: { position: [12, 2.9, 0], view: [19, 10, 10], target: [10, 1, 0] }
 };
 
-export function createHangar(viewport, hotspotLayer, onSelect) {
+export function createHangar(viewport, hotspotLayer, onSelect, onSocketSelect) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0b151c);
   scene.fog = new THREE.Fog(0x0b151c, 28, 70);
@@ -185,6 +185,27 @@ export function createHangar(viewport, hotspotLayer, onSelect) {
 
   // Both the assembly robot and actual fleet use the player's modular designs.
   const robotDisplays = createRobotDisplays(scene);
+  // Tap an installed part or empty socket to select its editor slot.
+  // Ignore longer drags so this does not interfere with OrbitControls.
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  let pointerStart = null;
+  const pointerDown = event => {
+    pointerStart = {x:event.clientX,y:event.clientY};
+  };
+  const pointerUp = event => {
+    if(!pointerStart || activeStation!=="assembly")return;
+    const start=pointerStart;pointerStart=null;
+    if(Math.hypot(event.clientX-start.x,event.clientY-start.y)>8)return;
+    const bounds=renderer.domElement.getBoundingClientRect();
+    if(!bounds.width||!bounds.height)return;
+    pointer.set(((event.clientX-bounds.left)/bounds.width)*2-1,-((event.clientY-bounds.top)/bounds.height)*2+1);
+    raycaster.setFromCamera(pointer,camera);
+    const socket=robotDisplays.pickSocket(raycaster);
+    if(socket)onSocketSelect?.(socket);
+  };
+  renderer.domElement.addEventListener("pointerdown",pointerDown);
+  renderer.domElement.addEventListener("pointerup",pointerUp);
 
   // Workshop, welding equipment and maintenance gantry.
   floorPad(8.5, 5.1, 7.4, 6.5);
@@ -371,6 +392,8 @@ export function createHangar(viewport, hotspotLayer, onSelect) {
       cancelAnimationFrame(frame);
       observer?.disconnect();
       window.removeEventListener("resize", resize);
+      renderer.domElement.removeEventListener("pointerdown",pointerDown);
+      renderer.domElement.removeEventListener("pointerup",pointerUp);
       controls.dispose();
       factoryView.dispose();
       robotDisplays.dispose();
