@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { GRID_W, GRID_H, MACHINE_TYPES, machineFootprint } from "./state.js";
 
-// Mirrors the factory planner on the actual hangar floor. Visual only in Step 1.
+// Real machine layout plus moving completed resource/part deliveries.
 export function createFactoryView(scene) {
   const TILE = 0.79, cx = -9, cz = -4;
   const mat = (color, glow = false) => new THREE.MeshStandardMaterial({
@@ -17,7 +17,39 @@ export function createFactoryView(scene) {
   root.name = "Factory layout preview";
   scene.add(root);
   const models = new THREE.Group();
-  root.add(models);
+  const cargo = new THREE.Group();
+  root.add(models,cargo);
+  const cargoMats={
+    alloy:new THREE.MeshStandardMaterial({color:0xf8b975,emissive:0xc37529,emissiveIntensity:0.9,metalness:0.38}),
+    part:new THREE.MeshStandardMaterial({color:0x86d8c8,emissive:0x227f72,emissiveIntensity:0.9,metalness:0.4})
+  };
+  const cargoGeometry=new THREE.BoxGeometry(0.23,0.21,0.23);
+  let activeDeliveries=[];
+  const cargoMeshes=[];
+  function setActivity(deliveries){activeDeliveries=deliveries||[];}
+  function animateDeliveries(){
+    // Smoothly interpolate between discrete factory time steps.
+    for(let i=0;i<Math.min(32,activeDeliveries.length);i++){
+      const packet=activeDeliveries[i];
+      let mesh=cargoMeshes[i];
+      if(!mesh){
+        mesh=new THREE.Mesh(cargoGeometry,cargoMats.alloy);
+        cargoMeshes[i]=mesh;
+        cargo.add(mesh);
+      }
+      mesh.visible=true;mesh.material=cargoMats[packet.kind]||cargoMats.alloy;
+      if(!Array.isArray(packet.path)||packet.path.length<2)continue;
+      const ratio=Math.max(0,Math.min(0.999,(packet.elapsed||0)/Math.max(0.01,packet.duration||1)));
+      const offset=ratio*(packet.path.length-1),index=Math.floor(offset),blend=offset-index;
+      const from=packet.path[index],to=packet.path[Math.min(index+1,packet.path.length-1)];
+      const tileX=from.x+(to.x-from.x)*blend, tileY=from.y+(to.y-from.y)*blend;
+      const point=new THREE.Vector3(cx+(tileX+0.5-GRID_W/2)*TILE,0.57,cz+(tileY+0.5-GRID_H/2)*TILE);
+      if(mesh.userData.packet!==packet){mesh.position.copy(point);mesh.userData.packet=packet;}
+      else mesh.position.lerp(point,0.28);
+      mesh.rotation.y+=0.015;
+    }
+    for(let i=activeDeliveries.length;i<cargoMeshes.length;i++)cargoMeshes[i].visible=false;
+  }
   const lines = [];
   for (let x = 0; x <= GRID_W; x++) {
     const a = cx + (x - GRID_W/2)*TILE;
@@ -99,8 +131,10 @@ export function createFactoryView(scene) {
   function dispose() {
     setMachines([]);
     geometry.dispose(); tileLines.material.dispose();
+    cargoGeometry.dispose();
+    Object.values(cargoMats).forEach(material=>material.dispose());
     Object.values(m).forEach(material=>material.dispose());
     scene.remove(root);
   }
-  return {setMachines,dispose};
+  return {setMachines,setActivity,animateDeliveries,dispose};
 }
