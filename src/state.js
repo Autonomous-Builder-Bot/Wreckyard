@@ -8,11 +8,11 @@ export const GRID_W = 12;
 export const GRID_H = 8;
 
 export const MACHINE_TYPES = {
-  conveyor: { name: "Conveyor", width: 1, height: 1, short: "→", summary: "Transfers materials between connected machines." },
-  forge: { name: "Forge", width: 2, height: 2, short: "F", summary: "Smelts scrap into usable metal." },
-  assembler: { name: "Builder", width: 2, height: 2, short: "B", summary: "Assembles crafted parts from materials." },
-  storage: { name: "Storage", width: 2, height: 2, short: "S", summary: "Holds inputs and manufactured components." },
-  generator: { name: "Generator", width: 2, height: 2, short: "G", summary: "Supplies power to factory machinery." }
+  conveyor: { name: "Conveyor", width: 1, height: 1, short: "→", cost: {scrap:4,alloy:0}, summary: "Moves cargo forward along its arrow." },
+  forge: { name: "Forge", width: 2, height: 2, short: "F", cost: {scrap:30,alloy:5}, summary: "Turns 4 scrap into refined alloy." },
+  assembler: { name: "Builder", width: 2, height: 2, short: "B", cost: {scrap:36,alloy:7}, summary: "Builds robot components using stored materials." },
+  storage: { name: "Storage", width: 2, height: 2, short: "S", cost: {scrap:15,alloy:2}, summary: "Provides raw material input and receives finished goods." },
+  generator: { name: "Generator", width: 2, height: 2, short: "G", cost: {scrap:28,alloy:5}, summary: "Adds 30 units of production power." }
 };
 
 const starterFactory = [
