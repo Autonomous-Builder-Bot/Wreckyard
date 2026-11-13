@@ -283,12 +283,14 @@ export function createHangar(viewport, hotspotLayer, onSelect, onSocketSelect) {
   }
   createLabel("ROBOT HANGAR", [11.5, 4.6, 0], 3);
 
-  // Overhead crane reinforces the sense of a working industrial assembly yard.
-  box(scene, 8.7, 0.42, 0.5, 0, 6.25, 2, amber);
-  for (let x of [-4.15, 4.15]) box(scene, 0.35, 1.5, 0.6, x, 6.85, 2, metal);
-  line(scene, [0, 6.1, 2], [0, 3.7, 2], 0.065, trim);
+  // Keep the assembly crane in overview, but hide it during factory close-up.
+  // Its long horizontal girder otherwise cuts across factory machinery.
+  const craneParts=[];
+  craneParts.push(box(scene,8.7,0.42,0.5,0,6.25,2,amber));
+  for(const x of [-4.15,4.15])craneParts.push(box(scene,0.35,1.5,0.6,x,6.85,2,metal));
+  craneParts.push(line(scene,[0,6.1,2],[0,3.7,2],0.065,trim));
   const hook = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.09, 8, 16, Math.PI * 1.55), amber);
-  hook.position.set(0.11, 3.42, 2); hook.rotation.z = 0.35; scene.add(hook);
+  hook.position.set(0.11, 3.42, 2); hook.rotation.z = 0.35; scene.add(hook);craneParts.push(hook);
 
   // A few light-colored industrial markers break up the broad floor.
   for (let z of [-8.5, 8.5]) for (let x of [-5.2, 5.2]) {
@@ -318,6 +320,7 @@ export function createHangar(viewport, hotspotLayer, onSelect, onSocketSelect) {
     // Keep factory equipment readable from a low-angle view.
     const showRoof=activeStation!=="factory";
     for(const beam of roofBeams)beam.visible=showRoof;
+    for(const part of craneParts)part.visible=showRoof;
     if (POSITIONS[activeStation]) {
       cameraDestination = new THREE.Vector3(...POSITIONS[activeStation].view);
       targetDestination = new THREE.Vector3(...POSITIONS[activeStation].target);
