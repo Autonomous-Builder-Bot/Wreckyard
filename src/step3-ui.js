@@ -33,7 +33,7 @@ export function factoryControls(game){
     '<div class="builder-meter-track"><i style="width:'+powered+'%;background:'+(status.power.used>status.power.capacity?'#d6816f':'#e3a65f')+'"></i></div>'+
     '<div class="action-row"><button type="button" class="action-button" data-production-toggle="1">'+(status.running?'PAUSE PRODUCTION':'START PRODUCTION')+'</button>'+
     '<button type="button" class="action-button secondary" data-factory-action="demo">INSTALL STARTER LINE</button></div>'+
-    '<p class="muted">Production uses real resources. Forges smelt scrap into alloy; builders consume materials to make usable robot parts. Power and conveyor routes are required. Machines stop when materials run out. The starter-line button replaces the current floor layout only.</p>'+
+    '<p class="muted">Production uses real resources. Forges smelt scrap into alloy; builders consume materials to make usable robot parts. Power and conveyor routes are required. Machines stop when materials run out. The starter-line button returns your installed machines to stock, reuses what you own, and buys only the missing equipment if affordable.</p>'+
     '<div class="section-label">Machine operations</div>'+
     (processors||'<div class="notice">Place a forge or builder, a generator, and storage connected by correctly directed conveyors.</div>')+
     '<p class="factory-legend">Completed: '+num(status.totals.alloy)+' alloy · '+num(status.totals.parts)+' components. Outputs enter your warehouse when the delivery reaches its destination.</p></div>';
