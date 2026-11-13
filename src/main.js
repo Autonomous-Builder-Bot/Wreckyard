@@ -163,6 +163,7 @@ function factoryMarkup() {
     '<div id="factory-ghost" class="factory-ghost" aria-hidden="true"></div></div></div>' +
     '<p class="factory-legend">' + machines.length + ' placed machines • ' + area + '/' + (GRID_W * GRID_H) +
     ' occupied cells. <strong id="factory-3d-status" class="factory-3d-status">3D: loading</strong>. Hover for a ghost preview. On touch: tap a tile to preview, then tap again to confirm. Red means blocked; purchase extra machines with BUY +1.</p>' +
+    '<div class="action-row"><button type="button" class="action-button secondary" data-factory-preview="1">VIEW FACTORY IN 3D</button></div>' +
     '<div class="action-row"><button type="button" class="small-button" data-factory-confirm="1">PLACE AT PREVIEW</button>'+
     '<button type="button" class="small-button" data-factory-clear-preview="1">CLEAR PREVIEW</button></div>' +
     '<div class="action-row"><button type="button" class="action-button secondary" data-factory-action="save">SAVE LAYOUT</button>' +
@@ -183,7 +184,7 @@ function renderPanel() {
 
 function selectStation(id) {
   const s = station(id);
-  document.querySelector(".main-stage")?.classList.remove("builder-preview-mode");
+  document.querySelector(".main-stage")?.classList.remove("builder-preview-mode","factory-preview-mode");
   currentStation = s.id;
   if(currentStation!=="factory"){hoverCell=null;touchArmedCell=null;sceneApi?.setFactoryGhost(null);}
   el("stage-title").textContent = s.title;
@@ -326,6 +327,11 @@ function onPanelClick(event) {
   const open = event.target.closest("[data-open]");
   if (open) { selectStation(open.dataset.open); return; }
   if (currentStation !== "factory") return;
+  if(event.target.closest("[data-factory-preview]")){
+    document.querySelector(".main-stage")?.classList.add("factory-preview-mode");
+    sceneApi?.focus("factory");
+    return;
+  }
   const prod=event.target.closest("[data-production-toggle]");
   if(prod){const running=toggleProduction(game);persist();renderPanel();toast(running?"Production started.":"Production paused.");return;}
   const machineToggle=event.target.closest("[data-machine-toggle]");
@@ -433,7 +439,8 @@ function initUI() {
       persist();renderPanel();
     }
   });
-  el("builder-return").addEventListener("click", () => document.querySelector(".main-stage")?.classList.remove("builder-preview-mode"));
+  el("builder-return").addEventListener("click",()=>document.querySelector(".main-stage")?.classList.remove("builder-preview-mode"));
+  el("factory-return").addEventListener("click",()=>document.querySelector(".main-stage")?.classList.remove("factory-preview-mode"));
   el("close-panel").addEventListener("click", () => selectStation("overview"));
   el("home-button").addEventListener("click", () => selectStation("overview"));
   el("camera-reset").addEventListener("click", () => {
