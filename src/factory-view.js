@@ -18,7 +18,40 @@ export function createFactoryView(scene) {
   scene.add(root);
   const models = new THREE.Group();
   const cargo = new THREE.Group();
-  root.add(models,cargo);
+  const preview=new THREE.Group();
+  root.add(models,cargo,preview);
+  const ghostGreen=new THREE.MeshStandardMaterial({
+    color:0x88eac0,emissive:0x276d57,emissiveIntensity:0.6,transparent:true,opacity:0.47,
+    depthWrite:false,metalness:0.08,roughness:0.36,side:THREE.DoubleSide
+  });
+  const ghostRed=new THREE.MeshStandardMaterial({
+    color:0xed7874,emissive:0x762521,emissiveIntensity:0.6,transparent:true,opacity:0.48,
+    depthWrite:false,metalness:0.08,roughness:0.4,side:THREE.DoubleSide
+  });
+  let lastPreview="";
+  function clearPreview() {
+    while(preview.children.length){
+      const child=preview.children[0];
+      child.traverse(o=>o.geometry?.dispose());
+      preview.remove(child);
+    }
+  }
+  function setGhost(value) {
+    const key=value?JSON.stringify(value):"";
+    if(key===lastPreview)return;
+    lastPreview=key;clearPreview();
+    if(!value||!MACHINE_TYPES[value.type])return;
+    draw({...value,id:"preview"},preview);
+    const ghostMaterial=value.valid&&!value.remove?ghostGreen:ghostRed;
+    preview.traverse(object=>{
+      if(object.isMesh){
+        object.material=ghostMaterial;
+        object.castShadow=false;object.receiveShadow=false;
+        object.renderOrder=7;
+      }
+    });
+    preview.position.y=0.07;
+  }
   const cargoMats={
     alloy:new THREE.MeshStandardMaterial({color:0xf8b975,emissive:0xc37529,emissiveIntensity:0.9,metalness:0.38}),
     part:new THREE.MeshStandardMaterial({color:0x86d8c8,emissive:0x227f72,emissiveIntensity:0.9,metalness:0.4})
@@ -74,7 +107,7 @@ export function createFactoryView(scene) {
     obj.position.set(x,y,z); obj.castShadow=true; group.add(obj);
     return obj;
   }
-  function draw(item) {
+  function draw(item,parent=models) {
     if (!MACHINE_TYPES[item.type]) return;
     const {w,h}=machineFootprint(item);
     const group=new THREE.Group();
@@ -118,7 +151,7 @@ export function createFactoryView(scene) {
       cylinder(group,0.50,0.13,0,1.69,0,m.amber);
       for(const x of [-0.43,0.43])box(group,0.11,0.70,0.11,x,1.21,0,m.light);
     }
-    models.add(group);
+    parent.add(group);
   }
   function setMachines(machines) {
     while(models.children.length) {
@@ -130,11 +163,12 @@ export function createFactoryView(scene) {
   }
   function dispose() {
     setMachines([]);
+    setGhost(null);ghostGreen.dispose();ghostRed.dispose();
     geometry.dispose(); tileLines.material.dispose();
     cargoGeometry.dispose();
     Object.values(cargoMats).forEach(material=>material.dispose());
     Object.values(m).forEach(material=>material.dispose());
     scene.remove(root);
   }
-  return {setMachines,setActivity,animateDeliveries,dispose};
+  return {setMachines,setGhost,setActivity,animateDeliveries,dispose};
 }
