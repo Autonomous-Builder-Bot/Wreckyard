@@ -22,7 +22,7 @@ export function factoryControls(game){
     '<div class="production-machine-footer"><span>'+(job?"Cycle "+Math.min(100,Math.floor(job.elapsed/job.duration*100))+"%":reason?"Needs attention":"Waiting for materials")+'</span>'+
     '<button type="button" class="small-button" data-machine-toggle="'+esc(machine.id)+'">'+
     (prod.enabled[machine.id]===false?"ENABLE":"DISABLE")+'</button></div>'+
-    (job?'<div class="builder-meter-track"><i style="width:'+Math.min(100,Math.floor(job.elapsed/job.duration*100))+'%;background:#dfb47a"></i></div>':'')+
+    '<div class="builder-meter-track"><i style="width:'+(job?Math.min(100,Math.floor(job.elapsed/job.duration*100)):0)+'%;background:#dfb47a"></i></div>'+
     '</div>').join("");
   return '<div class="section-label">Live factory operations</div>'+
     '<div class="factory-operations">'+
@@ -59,7 +59,7 @@ export function missionsMarkup(game,now=Date.now()){
     const progress=Math.min(100,Math.floor((now-m.startedAt)/duration*100));
     const robot=game.fleet.find(r=>r.id===m.robotId);
     return '<div class="mission-active"><b>'+esc(robot?.name||"ROBOT")+'</b><small>'+esc(REGIONS[m.regionId]?.name||"Expedition")+
-    ' · '+remain+'s remaining</small><div class="builder-meter-track"><i style="width:'+progress+'%;background:#8cbdb2"></i></div></div>';
+    ' · <span data-mission-clock="'+esc(m.id)+'">'+remain+'s remaining</span></small><div class="builder-meter-track"><i style="width:'+progress+'%;background:#8cbdb2"></i></div></div>';
   }).join("");
   const history=ms.history.slice(0,5).map(item=>'<div class="mission-history"><b>'+esc(item.robotName)+'</b><span>'+
     esc(REGIONS[item.regionId]?.name||"Mission")+' · +'+num(item.reward.scrap)+' scrap · +'+num(item.reward.alloy)+' alloy · +'+num(item.reward.credits)+' credits</span></div>').join("");
