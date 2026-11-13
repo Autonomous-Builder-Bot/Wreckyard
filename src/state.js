@@ -3,7 +3,8 @@ import { starterRobot, MAX_FLEET, MAX_BLUEPRINTS } from "./robot-logic.js";
 import { RESEARCH, REGIONS } from "./progression.js";
 
 export const SAVE_KEY = "wreckyard_save_v1";
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
+export const STARTER_MACHINE_STOCK = Object.freeze({conveyor:6,forge:1,assembler:1,storage:1,generator:1});
 export const GRID_W = 12;
 export const GRID_H = 8;
 
@@ -34,7 +35,7 @@ export function defaultGame() {
     version: SAVE_VERSION,
     resources: { scrap: 240, alloy: 35, credits: 800 },
     fleet: [starterRobot()],
-    inventory: { parts: { cutter: 1, scanner: 1 } },
+    inventory: { parts: { cutter: 1, scanner: 1 }, machines: {...STARTER_MACHINE_STOCK} },
     blueprints: [],
     builder: { draft: normalizeDesign(STARTER_DESIGN), editingRobotId: "robot-1", selectedBlueprintId: null },
     factory: { machines: starterFactory.map(m => ({ ...m })), production: {running:false,jobs:{},deliveries:[],recipes:{m7:"wheel"},enabled:{},totals:{alloy:0,parts:0}} },
@@ -57,7 +58,7 @@ export function loadGame() {
   try {
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
     // v1 is migrated in place. Never discard an existing factory layout or inventory.
-    if (!saved || ![1,2,SAVE_VERSION].includes(saved.version) || !saved.factory || !Array.isArray(saved.factory.machines)) return defaultGame();
+    if (!saved || ![1,2,3,SAVE_VERSION].includes(saved.version) || !saved.factory || !Array.isArray(saved.factory.machines)) return defaultGame();
     const fresh = defaultGame();
     const valid = saved.factory.machines.filter(isValidMachine).slice(0, GRID_W * GRID_H).map(m => ({
       id: String(m.id).slice(0, 60), type: m.type, x: m.x, y: m.y,
@@ -111,7 +112,7 @@ export function loadGame() {
       fresh.builder.draft=normalizeDesign(fresh.fleet[0].design);
       fresh.builder.editingRobotId=fresh.fleet[0].id;
     }
-    if(saved.version===SAVE_VERSION) {
+    if(saved.version>=3) {
       const existingIds=new Set(fresh.factory.machines.map(m=>m.id));
       if(saved.factory.production && typeof saved.factory.production==="object"){
         const old=saved.factory.production,prod=fresh.factory.production;
@@ -177,7 +178,13 @@ export function loadGame() {
         }
       }
     }
-    // Version 2 saves keep their original factory, resources, fleet, and blueprints.
+    if(saved.version>=4 && saved.inventory?.machines && typeof saved.inventory.machines==="object") {
+      for(const type of Object.keys(MACHINE_TYPES)) {
+        const qty=saved.inventory.machines[type];
+        fresh.inventory.machines[type]=Number.isSafeInteger(qty)&&qty>=0?Math.min(qty,9999):0;
+      }
+    }
+    // Legacy saves keep their factory, resources, fleet, research and blueprints.
     // They can install the new starter line without replacing the rest of their progress.
     fresh.version=SAVE_VERSION;
     return fresh;
