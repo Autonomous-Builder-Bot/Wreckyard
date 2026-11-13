@@ -38,6 +38,7 @@ export function buildQuote(game,raw,robotId=null){
   }
   const stats=designStats(design);
   const errors=[...stats.issues];
+  if(existing && existing.status!=="Docked")errors.push("Robot must return before refitting");
   if(!existing && game.fleet.length>=MAX_FLEET)errors.push("Hangar full (12 robots)");
   if((game.resources.scrap||0)<cost.scrap)errors.push("Not enough scrap");
   if((game.resources.alloy||0)<cost.alloy)errors.push("Not enough alloy");
