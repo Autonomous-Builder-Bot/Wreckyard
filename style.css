@@ -137,3 +137,107 @@
 .factory-3d-status{display:inline-block;color:#9bddbd;font-weight:900;white-space:nowrap}
 .factory-model-mismatch{color:#f0a28b}
 @media(max-width:620px){.factory-return{right:10px;top:8px}}
+
+
+/* Autonomous combat arena: a clear, full-screen spectator experience. */
+.arena-overlay[hidden]{display:none!important}
+.arena-overlay{position:fixed;inset:0;z-index:1000;background:#0d171c;color:#f5e9d5;overflow:hidden;
+  display:flex;flex-direction:column;font-family:inherit}
+.arena-canvas{position:absolute;inset:0;z-index:0;overflow:hidden}
+.arena-canvas canvas{width:100%;height:100%;display:block;touch-action:none}
+.arena-stage-top{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;
+  gap:12px;padding:clamp(12px,2.1vw,24px);background:linear-gradient(#0c181fe7,#0c181f16)}
+.arena-headline{display:flex;flex-direction:column;gap:6px;text-shadow:0 2px 12px #02080d}
+.arena-headline small{font-size:10px;color:#a7bfba;letter-spacing:.16em;font-weight:850}
+.arena-headline strong{font-size:clamp(18px,2.7vw,31px);letter-spacing:.065em}
+.arena-hud{position:relative;z-index:2;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:start;gap:clamp(8px,3vw,34px);padding:0 clamp(12px,2.2vw,26px);width:min(850px,100%);margin:0 auto;pointer-events:none}
+.arena-hud-bot{min-width:0}
+.arena-hud-bot.enemy{text-align:right}
+.arena-hud-name{font-size:clamp(11px,1.8vw,17px);font-weight:900;text-shadow:0 2px 10px #02080d;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arena-health{height:clamp(10px,1.6vw,16px);border:2px solid #879c8c;background:#16262e;
+  margin:7px 0 5px;border-radius:3px;overflow:hidden;box-shadow:0 1px 10px #0009}
+.arena-health i{height:100%;display:block;background:linear-gradient(90deg,#428f73,#8cddb5);transition:width .21s linear}
+.arena-hud-bot.enemy .arena-health i{background:linear-gradient(90deg,#ed8d6a,#c55254)}
+.arena-health-numbers{font-size:11px;font-weight:900;color:#d3e4dd;letter-spacing:.04em}
+.arena-fight-label{color:#d6bd90;text-shadow:0 2px 10px #000;font-size:clamp(10px,1.5vw,15px);
+  font-weight:900;letter-spacing:.14em;padding-top:9px;white-space:nowrap}
+.arena-bottom{margin-top:auto;position:relative;z-index:2;display:flex;gap:12px;align-items:flex-end;
+  justify-content:space-between;padding:clamp(14px,3vw,32px);background:linear-gradient(transparent,#071116ed 80%);
+  min-height:160px}
+.arena-commentary{display:flex;flex-direction:column;gap:7px;max-width:70%;text-shadow:0 2px 6px #000}
+.arena-commentary small{font-size:11px;letter-spacing:.09em;color:#bfd1cc}
+.arena-commentary strong{font-size:clamp(16px,2.7vw,28px);letter-spacing:.05em}
+.arena-bottom-actions{flex-shrink:0}
+.arena-record{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.arena-record>div{min-width:0;text-align:center;background:#1d3234;border:1px solid #526a61;border-radius:5px;padding:12px 4px}
+.arena-record b{display:block;font-size:19px;color:#efd19e;font-variant-numeric:tabular-nums}
+.arena-record small{display:block;color:#a6beb6;font-size:8px;letter-spacing:.05em;margin-top:5px}
+.arena-robot-stats,.arena-opponent-stats{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px}
+.arena-robot-stats span,.arena-opponent-stats span{display:inline-block;padding:7px;
+  background:#314341;border:1px solid #66756a;border-radius:3px;color:#c9ddcd;font-size:10px;font-weight:850}
+.arena-opponent{background:linear-gradient(130deg,#322921,#1c3033);border:1px solid #715745;
+  border-radius:6px;padding:13px}
+.arena-opponent>strong{display:block;font-size:14px;color:#f5c7a0}
+.arena-opponent>span{font-size:10px;color:#beaea3;display:block;margin-top:5px}
+.arena-opponent p{color:#b9c4be;font-size:11px;line-height:1.55}
+.arena-go{width:100%;min-height:45px}
+.arena-last{padding:13px;border-radius:6px;border:1px solid #55735a;background:#183329}
+.arena-last.lost{border-color:#83584a;background:#332421}
+.arena-last strong,.arena-last small,.arena-last span{display:block;margin-bottom:6px}
+.arena-last strong{color:#aee7b9;font-size:14px}
+.arena-last.lost strong{color:#f3b0a0}
+.arena-last small{font-size:10px;color:#b7c6bd}
+.arena-last span{font-size:11px;color:#f2d3a1}
+@media(max-width:620px){
+  .arena-stage-top{gap:7px;padding:10px}
+  .arena-stage-top .action-button{font-size:10px;padding:10px 8px;white-space:nowrap}
+  .arena-headline small{font-size:8px}.arena-headline strong{font-size:16px}
+  .arena-hud{padding:0 10px;gap:6px}
+  .arena-health-numbers{font-size:9px}.arena-fight-label{font-size:9px}
+  .arena-bottom{align-items:stretch;flex-direction:column;gap:10px;min-height:135px;padding:15px 12px}
+  .arena-commentary{max-width:100%}.arena-commentary strong{font-size:17px}
+  .arena-bottom-actions .action-button{width:100%;min-height:42px}
+}
+
+/* Fallout Shelter-like lightweight scavenge vignette; no sprite assets needed. */
+.scavenge-vista{height:128px;position:relative;border:1px solid #597470;border-radius:6px;margin:10px 0 7px;
+  background:linear-gradient(#2d494f,#465657 66%,#4b4936 67%,#2c3937);overflow:hidden;isolation:isolate}
+.scavenge-vista.region-relay{background:linear-gradient(#293e52,#3d4a55 67%,#343e41 68%,#293336)}
+.scavenge-vista.region-pit{background:linear-gradient(#493831,#665040 67%,#4d3931 68%,#262a2d)}
+.scavenge-vista.region-blacksite{background:linear-gradient(#232638,#3c3e46 67%,#34323b 68%,#252633)}
+.scavenge-sun{position:absolute;width:39px;height:39px;border-radius:50%;top:12px;right:21px;
+  background:#efbc83;opacity:.76;box-shadow:0 0 22px #d6a87477}
+.scavenge-building{position:absolute;bottom:34%;background:#293b40;border:2px solid #60706a;opacity:.85}
+.scavenge-building:after{content:"";position:absolute;inset:20% 20%;background:repeating-linear-gradient(
+  90deg,transparent 0 10px,#9ba48b55 10px 13px,transparent 13px 20px)}
+.scavenge-building.b1{left:8%;width:38px;height:55px;transform:skewX(-8deg)}
+.scavenge-building.b2{left:35%;width:26px;height:36px;transform:rotate(-4deg)}
+.scavenge-building.b3{left:62%;width:55px;height:73px;transform:skewX(5deg)}
+.scavenge-building.b4{left:87%;width:20px;height:49px}
+.scavenge-debris{position:absolute;bottom:14px;width:32px;height:13px;background:#8e6b4c;
+  clip-path:polygon(0 100%,35% 15%,65% 45%,100% 100%)}
+.scavenge-debris.d1{left:23%}.scavenge-debris.d2{left:74%}
+.scavenge-ground{height:16px;position:absolute;left:0;right:0;bottom:0;
+  background:repeating-linear-gradient(90deg,#39463d 0 18px,#5c5945 18px 22px)}
+.scavenge-rover{position:absolute;z-index:4;width:65px;height:55px;bottom:8px;transition:left .24s linear;transform:translateX(-50%)}
+.scavenge-rover-body{position:absolute;left:6px;right:7px;top:20px;height:22px;border:2px solid #142d32;
+  border-radius:5px;background:#bb9564;box-shadow:inset 0 -6px #6e6552}
+.scavenge-rover-top{position:absolute;top:9px;left:24px;width:24px;height:14px;background:#618d8b;
+  border:2px solid #183139;border-radius:5px 5px 0 0}
+.scavenge-rover-top:after{content:"";position:absolute;top:2px;left:6px;width:8px;height:5px;background:#92eee0;border-radius:3px}
+.scavenge-wheel{position:absolute;top:38px;width:17px;height:17px;background:#142c34;border:4px solid #9aa4a0;
+  border-radius:50%;animation:scavenge-roll .65s linear infinite;z-index:6}
+.scavenge-wheel.left{left:10px}.scavenge-wheel.right{right:10px}
+.scavenge-wheel:before{content:"";width:2px;height:6px;background:#253840;position:absolute;left:3px;top:0}
+.scavenge-lamp{position:absolute;left:52px;top:24px;width:14px;height:8px;background:#b4f4d9;border-radius:50%;
+  filter:drop-shadow(2px 0 5px #b4ffe4)}
+.scavenge-cargo{position:absolute;left:-2px;top:23px;width:10px;height:16px;border:2px solid #20343b;background:#6d5544}
+.scavenge-rover:after{content:"";position:absolute;bottom:-2px;left:0;width:72px;height:4px;background:#202d2d88;
+  border-radius:50%}
+.scavenge-expedition-info{display:flex;justify-content:space-between;gap:9px;color:#c6d8c9;font-size:10px;
+  line-height:1.4;padding:3px 0 10px}
+.scavenge-expedition-info small:last-child{color:#e1c396;text-align:right}
+@keyframes scavenge-roll{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.scavenge-wheel{animation:none}.scavenge-rover{transition:none}}
