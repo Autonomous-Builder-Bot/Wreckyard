@@ -62,6 +62,45 @@ try{
   await page.waitForFunction(()=>document.querySelector("#factory-3d-status")?.textContent==="3D: 9 / 9");
   assert.equal(await page.locator("#hud-scrap").textContent(),initialScrap);
   await page.screenshot({path:"artifacts/factory-restored.png",fullPage:true});
+  // Real-time autonomous combat smoke test: the actual Three.js renderer must initialize.
+  await page.locator('[data-nav="arena"]').click();
+  await page.locator('[data-arena-start]').click();
+  await page.waitForFunction(() => {
+    const overlay=document.querySelector("#arena-overlay");
+    return overlay&&!overlay.hidden&&!!overlay.querySelector("#arena-canvas canvas");
+  },null,{timeout:30000});
+  await page.waitForFunction(()=>{
+    const health=[...document.querySelectorAll(".arena-hud-bot .arena-health-numbers")];
+    return health.length===2&&health.some(n=>{
+      const match=n.textContent.match(/(\d+) \/ (\d+)/);
+      return match&&Number(match[1])<Number(match[2]);
+    });
+  },null,{timeout:22000});
+  await page.screenshot({path:"artifacts/arena-ai-battle.png",fullPage:true});
+  await page.locator("#arena-close").click();
+  assert.equal(await page.locator("#arena-overlay").isVisible(),false);
+  const watch=page.locator('[data-arena-watch]');
+  if(await watch.count()){
+    await watch.click();
+  }else{
+    await page.locator('[data-arena-start]').click();
+  }
+  await page.waitForFunction(()=>!!document.querySelector("#arena-canvas canvas"),null,{timeout:20000});
+  await page.locator("#arena-close").click();
+
+  // A separate save context demonstrates the timer-driven shelter-style scavenging view.
+  const scavenger=await browser.newContext({viewport:{width:1060,height:780}});
+  const expedition=await openApp(scavenger);
+  await expedition.locator('[data-nav="missions"]').click();
+  await expedition.locator('[data-mission-start="flats"]').click();
+  await expedition.waitForSelector(".mission-active .scavenge-vista");
+  const rover=expedition.locator("[data-scavenge-bot]");
+  const beforeProgress=await rover.getAttribute("style");
+  await delay(1500);
+  assert.notEqual(await rover.getAttribute("style"),beforeProgress);
+  assert.equal(await expedition.locator("[data-mission-clock]").count(),1);
+  await expedition.screenshot({path:"artifacts/scavenging-visual.png",fullPage:true});
+  await scavenger.close();
   const mobile=await browser.newContext({...devices["Pixel 7"]});
   const phone=await openApp(mobile);
   await delay(1500);
