@@ -241,3 +241,5 @@
 .scavenge-expedition-info small:last-child{color:#e1c396;text-align:right}
 @keyframes scavenge-roll{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.scavenge-wheel{animation:none}.scavenge-rover{transition:none}}
+
+.arena-overlay [hidden]{display:none!important}
