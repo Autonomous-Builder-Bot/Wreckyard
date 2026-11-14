@@ -15,7 +15,7 @@ export function createRobotDisplays(scene){
   const warning=mat(0xc96745,.4,.5);
   const shared=[dark,steel,bright,edge,brass,rubber,glass,warning];
   const root=new THREE.Group();root.name="Modular robotic fleet";scene.add(root);
-  const draftRoot=new THREE.Group(),fleetRoot=new THREE.Group();root.add(draftRoot,fleetRoot);
+  const draftRoot=new THREE.Group(),fleetRoot=new THREE.Group(),combatRoot=new THREE.Group();root.add(draftRoot,fleetRoot,combatRoot);
 
   function block(parent,w,h,d,x,y,z,m){
     const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
@@ -282,6 +282,12 @@ export function createRobotDisplays(scene){
     const spots=[[10.8,.14,1.25],[12.75,.14,-.92],[10.45,.14,-1.25],[12.7,.14,1.3]];
     fleet.slice(0,4).forEach((unit,i)=>build(unit.design||{},fleetRoot,spots[i],.51));
   }
+  function setCombatants(player,opponent){
+    clear(combatRoot);
+    const a=build(player,combatRoot,[-3.6,0,0],0.72);
+    const b=build(opponent,combatRoot,[3.6,0,0],0.72);
+    return {player:a,enemy:b};
+  }
   function pickSocket(raycaster){
     for(const hit of raycaster.intersectObjects(draftRoot.children,true)){
       let node=hit.object;
@@ -292,6 +298,6 @@ export function createRobotDisplays(scene){
     }
     return null;
   }
-  function dispose(){clear(draftRoot);clear(fleetRoot);shared.forEach(m=>m.dispose());scene.remove(root);}
-  return {updateDraft,updateFleet,pickSocket,dispose};
+  function dispose(){clear(draftRoot);clear(fleetRoot);clear(combatRoot);shared.forEach(m=>m.dispose());scene.remove(root);}
+  return {updateDraft,updateFleet,setCombatants,pickSocket,dispose};
 }
