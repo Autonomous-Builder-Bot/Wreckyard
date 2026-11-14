@@ -108,6 +108,13 @@ try{
   await phone.waitForFunction(()=>document.querySelector("#factory-3d-status")?.textContent==="3D: 0 / 0");
   assert.equal(await phone.locator(".factory-placed").count(),0);
   await phone.screenshot({path:"artifacts/factory-phone-cleared.png",fullPage:true});
+  await phone.locator('[data-nav="arena"]').click();
+  await phone.locator('[data-arena-start]').click();
+  await phone.waitForFunction(()=>!document.querySelector("#arena-overlay")?.hidden&&
+    !!document.querySelector("#arena-canvas canvas"),null,{timeout:30000});
+  await phone.screenshot({path:"artifacts/arena-mobile.png",fullPage:true});
+  await phone.locator("#arena-close").click();
+  assert.equal(await phone.locator("#arena-overlay").isVisible(),false);
   if(allErrors.length)throw new Error("Browser errors: "+allErrors.join("\n"));
   console.log("PASS: Three.js scene loaded with 9 factory models.");
   console.log("PASS: Hover ghost, clear layout, stock return, restore layout and mobile clear.");
