@@ -241,6 +241,7 @@ function arenaHud(match){
 }
 function closeArena(){
   arenaOpen=false;
+  sceneApi?.setSuspended(false);
   arenaLoadToken++;
   el("arena-overlay").hidden=true;
   el("arena-overlay").setAttribute("aria-hidden","true");
@@ -252,6 +253,7 @@ function closeArena(){
 function showArena(match){
   if(!match)return;
   arenaOpen=true;
+  sceneApi?.setSuspended(true);
   arenaDisplayMatch=match;
   const overlay=el("arena-overlay");
   overlay.hidden=false;overlay.setAttribute("aria-hidden","false");
