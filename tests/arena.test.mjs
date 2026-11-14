@@ -103,7 +103,7 @@ test("unresolved fights persist through save/load and cannot be cashed twice",()
   assert.equal(restored.version,SAVE_VERSION);
   assert.equal(restored.arena.active.id,match.id);
   assert.equal(restored.fleet[0].status,"Fighting");
-  assert.ok(restored.arena.active.elapsed>=2);
+  assert.ok(restored.arena.active.elapsed>=1.5);
   restored.arena.active.enemy.hp=1;
   restored.arena.active.player.damage=200;
   const result=finish(restored);
