@@ -1,9 +1,10 @@
 import { STARTER_DESIGN, normalizeDesign, PARTS, designStats } from "./robot-data.js";
 import { starterRobot, MAX_FLEET, MAX_BLUEPRINTS } from "./robot-logic.js";
 import { RESEARCH, REGIONS } from "./progression.js";
+import { initialArena, restoreArena } from "./arena-sim.js";
 
 export const SAVE_KEY = "wreckyard_save_v1";
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 export const STARTER_MACHINE_STOCK = Object.freeze({conveyor:6,forge:1,assembler:1,storage:1,generator:1});
 export const GRID_W = 12;
 export const GRID_H = 8;
@@ -41,6 +42,7 @@ export function defaultGame() {
     factory: { machines: starterFactory.map(m => ({ ...m })), production: {running:false,jobs:{},deliveries:[],recipes:{m7:"wheel"},enabled:{},totals:{alloy:0,parts:0}} },
     research: {unlocked:[]},
     missions: {active:[],history:[],selectedRobotId:"robot-1"},
+    arena: initialArena("robot-1"),
     settings: { sound: false },
     updatedAt: Date.now()
   };
@@ -58,7 +60,7 @@ export function loadGame() {
   try {
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
     // v1 is migrated in place. Never discard an existing factory layout or inventory.
-    if (!saved || ![1,2,3,SAVE_VERSION].includes(saved.version) || !saved.factory || !Array.isArray(saved.factory.machines)) return defaultGame();
+    if (!saved || ![1,2,3,4,SAVE_VERSION].includes(saved.version) || !saved.factory || !Array.isArray(saved.factory.machines)) return defaultGame();
     const fresh = defaultGame();
     const valid = saved.factory.machines.filter(isValidMachine).slice(0, GRID_W * GRID_H).map(m => ({
       id: String(m.id).slice(0, 60), type: m.type, x: m.x, y: m.y,
@@ -184,6 +186,7 @@ export function loadGame() {
         fresh.inventory.machines[type]=Number.isSafeInteger(qty)&&qty>=0?Math.min(qty,9999):0;
       }
     }
+    if(saved.version>=5)fresh.arena=restoreArena(saved.arena,fresh);
     // Legacy saves keep their factory, resources, fleet, research and blueprints.
     // They can install the new starter line without replacing the rest of their progress.
     fresh.version=SAVE_VERSION;
