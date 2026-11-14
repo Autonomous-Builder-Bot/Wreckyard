@@ -42,5 +42,31 @@
     </div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </div>
+  <section id="arena-overlay" class="arena-overlay" aria-hidden="true" hidden>
+    <div class="arena-stage-top">
+      <div class="arena-headline"><small>WRECKYARD / AUTONOMOUS COMBAT</small><strong id="arena-round-title">ARENA ROUND 01</strong></div>
+      <button type="button" class="action-button secondary" id="arena-close">BACK TO HANGAR</button>
+    </div>
+    <div id="arena-canvas" class="arena-canvas" role="img" aria-label="3D auto-battle arena featuring your custom robot and an opponent"></div>
+    <div class="arena-hud">
+      <div class="arena-hud-bot"><div class="arena-hud-name" id="arena-player-name">YOUR ROBOT</div>
+        <div class="arena-health"><i id="arena-player-hp"></i></div>
+        <div id="arena-player-value" class="arena-health-numbers">100 / 100 HP</div></div>
+      <div id="arena-fight-label" class="arena-fight-label">AI VS AI</div>
+      <div class="arena-hud-bot enemy"><div class="arena-hud-name" id="arena-enemy-name">OPPONENT</div>
+        <div class="arena-health"><i id="arena-enemy-hp"></i></div>
+        <div id="arena-enemy-value" class="arena-health-numbers">100 / 100 HP</div></div>
+    </div>
+    <div class="arena-bottom">
+      <div class="arena-commentary">
+        <small id="arena-time">00:00</small>
+        <strong id="arena-action">AUTONOMOUS SYSTEMS ACTIVE</strong>
+        <small id="arena-live-message">Your robots choose their own movement and attacks.</small>
+      </div>
+      <div class="arena-bottom-actions">
+        <button type="button" class="action-button" id="arena-next" hidden>NEXT FIGHT</button>
+      </div>
+    </div>
+  </section>
 </body>
 </html>
