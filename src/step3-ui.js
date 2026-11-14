@@ -58,8 +58,21 @@ export function missionsMarkup(game,now=Date.now()){
     const duration=Math.max(1,m.endsAt-m.startedAt);
     const progress=Math.min(100,Math.floor((now-m.startedAt)/duration*100));
     const robot=game.fleet.find(r=>r.id===m.robotId);
+    const phase=progress<20?"Deploying from the hangar":progress<43?"Scanning ruins for scrap":
+      progress<72?"Salvaging recovered materials":progress<92?"Loading the cargo hold":"Returning to Wreckyard";
     return '<div class="mission-active"><b>'+esc(robot?.name||"ROBOT")+'</b><small>'+esc(REGIONS[m.regionId]?.name||"Expedition")+
-    ' · <span data-mission-clock="'+esc(m.id)+'">'+remain+'s remaining</span></small><div class="builder-meter-track"><i style="width:'+progress+'%;background:#8cbdb2"></i></div></div>';
+    ' · <span data-mission-clock="'+esc(m.id)+'">'+remain+'s remaining</span></small>'+
+    '<div class="scavenge-vista region-'+esc(m.regionId)+'">'+
+    '<div class="scavenge-sky"><span class="scavenge-sun"></span><span class="scavenge-building b1"></span><span class="scavenge-building b2"></span>'+
+    '<span class="scavenge-building b3"></span><span class="scavenge-building b4"></span></div>'+
+    '<div class="scavenge-debris d1"></div><div class="scavenge-debris d2"></div>'+
+    '<div class="scavenge-rover" data-scavenge-bot="'+esc(m.id)+'" style="left:'+(6+progress*.82)+'%">'+
+    '<span class="scavenge-lamp"></span><span class="scavenge-rover-body"></span><span class="scavenge-rover-top"></span>'+
+    '<span class="scavenge-wheel left"></span><span class="scavenge-wheel right"></span><span class="scavenge-cargo"></span></div>'+
+    '<div class="scavenge-ground"></div></div>'+
+    '<div class="scavenge-expedition-info"><small data-scavenge-message="'+esc(m.id)+'">'+esc(phase)+'</small>'+
+    '<small>+'+m.reward.scrap+' scrap · +'+m.reward.alloy+' alloy</small></div>'+
+    '<div class="builder-meter-track"><i style="width:'+progress+'%;background:#8cbdb2"></i></div></div>';
   }).join("");
   const history=ms.history.slice(0,5).map(item=>'<div class="mission-history"><b>'+esc(item.robotName)+'</b><span>'+
     esc(REGIONS[item.regionId]?.name||"Mission")+' · +'+num(item.reward.scrap)+' scrap · +'+num(item.reward.alloy)+' alloy · +'+num(item.reward.credits)+' credits</span></div>').join("");
@@ -68,7 +81,7 @@ export function missionsMarkup(game,now=Date.now()){
     '<div class="section-label">Active missions ('+ms.active.length+')</div>'+(active||'<p class="muted">No robots deployed. Select an expedition below.</p>')+
     '<div class="section-label">Scavenging regions</div><div class="mission-grid">'+cards+'</div>'+
     '<div class="section-label">Recent expedition results</div>'+(history||'<p class="muted">Your mission history will appear here.</p>')+
-    '<div class="notice cool">Expeditions are simulated; interactive combat scenes are a separate future milestone. Deploying a robot prevents refits or repairs until it returns.</div>';
+    '<div class="notice cool">Scavenging is a simple automated expedition: send a robot, watch it explore, and collect its haul on return. For unlimited AI battles use the Arena station. A deployed scavenger cannot fight or be refitted until it gets home.</div>';
 }
 export function researchMarkup(game){
   const unlocked=game.research.unlocked.length;
