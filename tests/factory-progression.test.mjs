@@ -150,7 +150,7 @@ test("version 2 files migrate without changing blueprints, resources or factory"
   };
   globalThis.localStorage={getItem:key=>key===SAVE_KEY?JSON.stringify(prior):null,setItem:()=>{}};
   const game=loadGame();
-  assert.equal(game.version,4);
+  assert.equal(game.version,5);
   assert.equal(game.factory.machines.length,1);
   assert.equal(game.factory.machines[0].id,"custom");
   assert.equal(game.resources.scrap,84);
@@ -170,7 +170,7 @@ test("version 3 saves persist active expeditions and partially completed factory
   assert.equal(launch.ok,true);
   assert.equal(saveGame(game),true);
   const restored=loadGame();
-  assert.equal(restored.version,4);
+  assert.equal(restored.version,5);
   assert.equal(restored.factory.production.running,true);
   assert.ok(Object.keys(restored.factory.production.jobs).length>0);
   assert.equal(restored.missions.active.length,1);

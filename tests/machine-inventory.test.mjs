@@ -107,7 +107,7 @@ test("v3 migration retains custom layout and grants starter spare equipment once
   old.factory.machines=[{id:"custom-forge",type:"forge",x:2,y:2,rotation:0}];
   data.set(SAVE_KEY,JSON.stringify(old));
   const migrated=loadGame();
-  assert.equal(migrated.version,4);
+  assert.equal(migrated.version,5);
   assert.equal(migrated.factory.machines[0].id,"custom-forge");
   assert.equal(stockCount(migrated,"conveyor"),STARTER_MACHINE_STOCK.conveyor);
   assert.equal(stockCount(migrated,"forge"),STARTER_MACHINE_STOCK.forge);
