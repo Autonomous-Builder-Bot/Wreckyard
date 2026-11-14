@@ -5,6 +5,8 @@ import { ensureProduction, advanceFactory, refundJobs, removeMachineProduction, 
 import { ensureProgress, advanceMissions, startMission, purchaseResearch, repairRobot } from "./progression.js";
 import { factoryControls, missionsMarkup, groupedResearchMarkup, workshopMarkup } from "./step3-ui.js";
 import { stockCount, buyMachine, placeOwnedMachine, removeOwnedMachine, clearFactoryLayout, installStarterLine, starterLineQuote } from "./machine-inventory.js";
+import { startFight, advanceArena } from "./arena-sim.js";
+import { arenaMarkup } from "./arena-ui.js";
 
 const STATIONS = [
   { id: "overview", label: "Hangar", icon: "⌂", title: "THE HANGAR", subtitle: "Build machines. Recover the wasteland." },
@@ -12,7 +14,8 @@ const STATIONS = [
   { id: "workshop", label: "Workshop", icon: "⚒", title: "WORKSHOP", subtitle: "Repair, reinforce, and refine your designs." },
   { id: "factory", label: "Factory", icon: "▦", title: "FACTORY FLOOR", subtitle: "Plan the production line that will build an empire." },
   { id: "research", label: "Research", icon: "⌬", title: "RESEARCH LAB", subtitle: "Turn scrap science into better machinery." },
-  { id: "missions", label: "Missions", icon: "◎", title: "MISSION CONTROL", subtitle: "Beyond the gates, everything has a price." },
+  { id: "missions", label: "Missions", icon: "◎", title: "SCAVENGING", subtitle: "Send your robots beyond the gates." },
+  { id: "arena", label: "Arena", icon: "⚔", title: "ROBOT ARENA", subtitle: "Two autonomous minds. One victor." },
   { id: "warehouse", label: "Warehouse", icon: "▤", title: "WAREHOUSE", subtitle: "Every spare bolt is a future machine." },
   { id: "fleet", label: "Fleet", icon: "▧", title: "ROBOT HANGAR", subtitle: "Manage the machines that work for you." }
 ];
@@ -31,6 +34,10 @@ let nextMachineId = Date.now();
 let hoverCell = null;
 let touchArmedCell = null;
 let touchPlacement = false;
+let arenaView = null;
+let arenaOpen = false;
+let arenaLoadToken = 0;
+let arenaDisplayMatch = null;
 const el = id => document.getElementById(id);
 
 function station(id) { return STATIONS.find(item => item.id === id) || STATIONS[0]; }
@@ -102,6 +109,8 @@ function infoMarkup(id) {
       return groupedResearchMarkup(game);
     case "missions":
       return missionsMarkup(game);
+    case "arena":
+      return arenaMarkup(game);
     case "warehouse":
       return '<p class="panel-lead">Inventory connects the factory, assembly bay and salvage missions. Your opening stock is reserved for the future production economy.</p>' +
         '<div class="stat-grid">' + stat(game.resources.scrap, 'SCRAP METAL') + stat(game.resources.alloy, 'REFINED ALLOY') + stat(game.resources.credits, 'CREDITS') + stat(game.fleet.length, 'ROBOTS') + '</div>' +
@@ -199,6 +208,74 @@ function selectStation(id) {
   document.querySelectorAll(".hotspot").forEach(node => node.classList.toggle("active", node.dataset.station === currentStation));
 }
 
+function arenaHud(match){
+  if(!match)return;
+  const active=game.arena.active?.id===match.id;
+  const values=[["player",match.player],["enemy",match.enemy]];
+  for(const [kind,bot] of values){
+    const name=kind==="player"?match.robotName:match.enemyDesign?.name;
+    el("arena-"+kind+"-name").textContent=name||kind.toUpperCase();
+    el("arena-"+kind+"-hp").style.width=Math.max(0,Math.min(100,100*bot.hp/Math.max(1,bot.maxHp)))+"%";
+    el("arena-"+kind+"-value").textContent=Math.ceil(bot.hp)+" / "+bot.maxHp+" HP";
+  }
+  el("arena-round-title").textContent="ARENA ROUND "+match.level;
+  const seconds=Math.floor(match.elapsed||0);
+  el("arena-time").textContent=String(Math.floor(seconds/60)).padStart(2,"0")+":"+String(seconds%60).padStart(2,"0");
+  el("arena-fight-label").textContent=active?"AI VS AI":match.winner==="player"?"VICTORY":"DEFEAT";
+  el("arena-action").textContent=active?"AUTONOMOUS BATTLE":match.winner==="player"?"YOUR ROBOT WINS":"OPPONENT WINS";
+  const latest=match.events?.at(-1);
+  if(active){
+    const attacker=latest?.from==="player"?match.robotName:match.enemyDesign.name;
+    el("arena-live-message").textContent=latest?.type==="hit"?
+      attacker+" lands "+latest.damage+" damage":
+      latest?.type==="miss"?attacker+" misses the shot":
+      "AI pilots choose their movement and attacks.";
+  }else{
+    const result=game.arena.last;
+    el("arena-live-message").textContent=result?
+      "+"+result.reward.scrap+" scrap, +"+result.reward.alloy+" alloy, +"+result.reward.credits+" credits":
+      "Battle complete";
+  }
+  el("arena-next").hidden=active;
+  el("arena-next").textContent=match.winner==="player"?"NEXT FIGHT":"RETRY ROUND";
+}
+function closeArena(){
+  arenaOpen=false;
+  arenaLoadToken++;
+  el("arena-overlay").hidden=true;
+  el("arena-overlay").setAttribute("aria-hidden","true");
+  arenaView?.dispose();
+  arenaView=null;arenaDisplayMatch=null;
+  persist();
+  if(currentStation==="arena")renderPanel();
+}
+function showArena(match){
+  if(!match)return;
+  arenaOpen=true;
+  arenaDisplayMatch=match;
+  const overlay=el("arena-overlay");
+  overlay.hidden=false;overlay.setAttribute("aria-hidden","false");
+  arenaHud(match);
+  const token=++arenaLoadToken;
+  if(arenaView){arenaView.setMatch(match);return;}
+  import("./arena-view.js").then(module=>{
+    if(!arenaOpen||arenaLoadToken!==token)return;
+    arenaView=module.createArenaView(el("arena-canvas"),match);
+    arenaHud(match);
+  }).catch(error=>{
+    console.error("Arena visualization failed:",error);
+    el("arena-canvas").textContent="3D arena failed to load. Return to hangar and try again.";
+    toast("Arena 3D unavailable; no match progress lost.");
+  });
+}
+function beginArenaFight(){
+  const result=startFight(game,game.arena.selectedRobotId);
+  if(!result.ok)return toast(result.message);
+  persist();updateHUD();sceneApi?.setRobotState(game.builder.draft,game.fleet);
+  if(currentStation==="arena")renderPanel();
+  showArena(result.match);
+}
+
 function updateFactoryModelBadge(){
   const badge=el("factory-3d-status");
   if(!badge)return;
@@ -286,6 +363,12 @@ function refreshMissionReadouts() {
     if(!mission)return;
     const seconds=Math.max(0,Math.ceil((mission.endsAt-now)/1000));
     node.textContent=seconds+"s remaining";
+    const pct=Math.max(0,Math.min(100,Math.floor((now-mission.startedAt)/(mission.endsAt-mission.startedAt)*100)));
+    const rover=el("panel-body").querySelector('[data-scavenge-bot="'+mission.id+'"]');
+    if(rover)rover.style.left=(6+pct*.82)+"%";
+    const phase=el("panel-body").querySelector('[data-scavenge-message="'+mission.id+'"]');
+    if(phase)phase.textContent=pct<20?"Deploying from the hangar":pct<43?"Scanning ruins for scrap":
+      pct<72?"Salvaging recovered materials":pct<92?"Loading the cargo hold":"Returning to Wreckyard";
     const bar=node.parentElement?.querySelector(".builder-meter-track i");
     if(bar)bar.style.width=Math.max(0,Math.min(100,Math.floor((now-mission.startedAt)/(mission.endsAt-mission.startedAt)*100)))+"%";
   });
@@ -317,6 +400,13 @@ function onPanelClick(event) {
   if(research){
     const result=purchaseResearch(game,research.dataset.researchBuy);
     if(result.ok)persist();updateHUD();renderPanel();toast(result.message);return;
+  }
+  if(currentStation==="arena"){
+    if(event.target.closest("[data-arena-start]")){beginArenaFight();return;}
+    if(event.target.closest("[data-arena-watch]")){
+      if(game.arena.active)showArena(game.arena.active);
+      return;
+    }
   }
   const mission=event.target.closest("[data-mission-start]");
   if(mission){
@@ -427,7 +517,13 @@ function initUI() {
       if(cell)previewCell(Number(cell.dataset.x),Number(cell.dataset.y));
     }
   });
+  el("arena-close").addEventListener("click",closeArena);
+  el("arena-next").addEventListener("click",beginArenaFight);
   el("panel-body").addEventListener("change", event => {
+    if(currentStation==="arena"&&event.target.matches("[data-arena-select]")){
+      game.arena.selectedRobotId=event.target.value;
+      persist();renderPanel();
+    }
     if(currentStation==="assembly")builderUI.nameChanged(event);
     if(currentStation==="factory"&&event.target.matches("[data-machine-recipe]")){
       if(setMachineRecipe(game,event.target.dataset.machineRecipe,event.target.value)){
@@ -449,7 +545,7 @@ function initUI() {
   });
   el("save-button").addEventListener("click", () => { persist(); toast("Game data saved locally."); });
   window.addEventListener("keydown", event => {
-    if (event.key === "Escape") selectStation("overview");
+    if(event.key==="Escape"){if(arenaOpen)closeArena();else selectStation("overview");}
     if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLTextAreaElement) return;
     if (currentStation === "factory" && (event.key === "r" || event.key === "R")) {
       toolRotation = (toolRotation + 90) % 360;touchArmedCell=null; renderPanel();
@@ -486,6 +582,19 @@ window.setInterval(()=>{
   lastTick=now;
   const missionEvents=advanceMissions(game);
   const factoryEvents=document.hidden?[]:advanceFactory(game,delta);
+  const fightingMatch=game.arena?.active;
+  const fightResult=!document.hidden&&arenaOpen&&arenaView?advanceArena(game,delta):null;
+  if(fightingMatch&&arenaOpen&&arenaView){
+    arenaView.setMatch(fightingMatch);
+    arenaDisplayMatch=fightingMatch;
+    arenaHud(fightingMatch);
+  }
+  if(fightResult?.ok){
+    persist();updateHUD();
+    sceneApi?.setRobotState(game.builder.draft,game.fleet);
+    toast(fightResult.message);
+    if(currentStation==="arena")renderPanel();
+  }
   sceneApi?.setFactoryActivity(game.factory.production.deliveries);
   const changed=missionEvents.length>0||factoryEvents.length>0;
   ticks++;
@@ -506,5 +615,5 @@ window.setInterval(()=>{
   if(currentStation==="factory")refreshFactoryReadouts();
   if(currentStation==="missions")refreshMissionReadouts();
 },250);
-document.addEventListener("visibilitychange",()=>{lastTick=performance.now();if(document.hidden)persist();});
+ document.addEventListener("visibilitychange",()=>{lastTick=performance.now();if(document.hidden)persist();});
 window.addEventListener("pagehide",()=>persist());
