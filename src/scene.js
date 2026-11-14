@@ -367,10 +367,12 @@ export function createHangar(viewport, hotspotLayer, onSelect, onSocketSelect) {
 
   let frame = 0;
   let running = true;
+  let suspended = false;
   const clock = new THREE.Clock();
   function tick() {
     if (!running) return;
     frame = requestAnimationFrame(tick);
+    if (suspended) return; // Suspend hidden hangar rendering while watching battles.
     const t = clock.getElapsedTime();
     factoryView.animateDeliveries();
     globe.rotation.y = t * 0.29;
@@ -400,6 +402,7 @@ export function createHangar(viewport, hotspotLayer, onSelect, onSocketSelect) {
 
   return {
     focus, resetCamera, resize,
+    setSuspended(value){suspended=Boolean(value);},
     setFactoryMachines: factoryView.setMachines,
     factoryModelCount: factoryView.modelCount,
     setFactoryGhost: factoryView.setGhost,
